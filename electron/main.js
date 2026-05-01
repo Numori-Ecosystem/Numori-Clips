@@ -432,25 +432,39 @@ function startDbusShortcutListener() {
         }
 
         if (line.includes('ClipboardChanged') && mainWindow && !mainWindow.isDestroyed()) {
-          // gdbus uses single or double quotes depending on content:
+          // gdbus monitor outputs GVariant tuples like:
           //   ('text', 'simple content')
           //   ('text', "content with 'quotes'")
-          const typeMatch = line.match(/ClipboardChanged\s*\('(\w+)'/)
+          //   ('text', 'content with escaped \'quotes\'')
+          // For multi-line or quote-heavy content the simple regex approach
+          // breaks, so we locate the content by finding the type field first,
+          // then grab everything between the next quote and the final quote+)
+          const typeMatch = line.match(/ClipboardChanged\s*\(\s*'(\w+)'/)
           if (typeMatch) {
             const type = typeMatch[1]
-            // Extract content: everything between the second quote pair after the type
-            const afterType = line.substring(line.indexOf(typeMatch[0]) + typeMatch[0].length)
+            // Find the position right after the type's closing quote + comma
+            const afterTypeIdx = line.indexOf(typeMatch[0]) + typeMatch[0].length
+            const rest = line.substring(afterTypeIdx)
+
             let content = null
 
-            // Try single-quoted: , 'content')
-            const sq = afterType.match(/,\s*'((?:[^'\\]|\\.)*)'\s*\)/)
-            if (sq) {
-              content = sq[1].replace(/\\n/g, '\n').replace(/\\'/g, "'")
-            } else {
-              // Try double-quoted: , "content")
-              const dq = afterType.match(/,\s*"((?:[^"\\]|\\.)*)"\s*\)/)
-              if (dq) {
-                content = dq[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+            // Determine the quote style used for the content value
+            const quoteStart = rest.match(/,\s*(['"])/)
+            if (quoteStart) {
+              const q = quoteStart[1] // ' or "
+              const contentStart = rest.indexOf(quoteStart[0]) + quoteStart[0].length
+              // Find the closing: quote followed by ) at the end, scanning from the right
+              // to handle escaped quotes inside the content
+              const tail = rest.substring(contentStart)
+              const closingPattern = q === "'" ? /'\s*\)\s*$/ : /"\s*\)\s*$/
+              const closingMatch = tail.match(closingPattern)
+              if (closingMatch) {
+                const raw = tail.substring(0, closingMatch.index)
+                // Unescape: \\n → newline, escaped quotes → literal quotes, \\\\ → backslash
+                content = raw
+                  .replace(/\\n/g, '\n')
+                  .replace(q === "'" ? /\\'/g : /\\"/g, q)
+                  .replace(/\\\\/g, '\\')
               }
             }
 
