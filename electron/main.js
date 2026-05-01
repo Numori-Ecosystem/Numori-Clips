@@ -137,7 +137,7 @@ function createTray() {
 
 // ── Display detection & window bounds ────────────────────────────────────
 
-const WINDOW_HEIGHT = 480
+const WINDOW_HEIGHT = 400
 
 function boundsForWorkArea(wa) {
   return { x: wa.x, y: wa.y + wa.height - WINDOW_HEIGHT, width: wa.width, height: WINDOW_HEIGHT }

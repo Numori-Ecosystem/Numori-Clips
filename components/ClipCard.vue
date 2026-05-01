@@ -17,9 +17,9 @@
     @keydown.delete.prevent="$emit('delete', clip.id)"
   >
     <!-- Card body -->
-    <div class="p-3">
+    <div class="p-2.5">
       <!-- Header row: type badge + time + actions -->
-      <div class="flex items-center gap-2 mb-2">
+      <div class="flex items-center gap-2 mb-1.5">
         <span
           class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
           :class="typeBadgeClasses"
@@ -69,8 +69,8 @@
 
       <!-- Content preview -->
       <!-- Image -->
-      <div v-if="clip.type === 'image'" class="rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 max-h-40">
-        <img :src="clip.content" alt="Clipboard image" class="w-full h-full object-contain max-h-40" loading="lazy" />
+      <div v-if="clip.type === 'image'" class="rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 max-h-28">
+        <img :src="clip.content" alt="Clipboard image" class="w-full h-full object-contain max-h-28" loading="lazy" />
       </div>
 
       <!-- Color -->
@@ -85,8 +85,8 @@
       </div>
 
       <!-- Emoji -->
-      <div v-else-if="clip.type === 'emoji'" class="py-2">
-        <span class="text-4xl leading-none">{{ clip.content.trim() }}</span>
+      <div v-else-if="clip.type === 'emoji'" class="py-1">
+        <span class="text-3xl leading-none">{{ clip.content.trim() }}</span>
       </div>
 
       <!-- Link -->
@@ -102,7 +102,7 @@
       <!-- Code -->
       <div v-else-if="clip.type === 'code'">
         <pre
-          class="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 font-mono overflow-hidden whitespace-pre-wrap line-clamp-4 bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5"
+          class="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 font-mono overflow-hidden whitespace-pre-wrap line-clamp-3 bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5"
         >{{ clip.preview }}</pre>
       </div>
 
@@ -117,7 +117,7 @@
 
       <!-- Text (default) -->
       <div v-else>
-        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">{{ clip.preview }}</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3 whitespace-pre-wrap break-words">{{ clip.preview }}</p>
       </div>
     </div>
   </div>

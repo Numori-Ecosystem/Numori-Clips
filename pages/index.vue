@@ -55,7 +55,7 @@
 
       <div class="flex-1 flex overflow-hidden">
         <main class="flex-1 overflow-hidden flex flex-col isolate relative">
-          <ClipPanel ref="clipPanelRef" @dismiss="dismissMainWindow" />
+          <ClipPanel ref="clipPanelRef" @dismiss="dismissMainWindow" @open-settings="openSettings()" />
         </main>
       </div>
 

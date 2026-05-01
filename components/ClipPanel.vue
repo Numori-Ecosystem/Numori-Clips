@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-full overflow-hidden">
     <!-- ── Toolbar ────────────────────────────────────────────────────── -->
-    <div class="flex-shrink-0 px-4 pt-3 pb-2 space-y-2.5">
+    <div class="flex-shrink-0 px-4 pt-2.5 pb-1.5 space-y-2">
       <!-- Search row -->
       <div class="flex items-center justify-center gap-2">
         <div class="relative flex-1 max-w-md">
@@ -55,6 +55,15 @@
         >
           <Icon :name="clipboard.incognitoMode.value ? 'mdi:eye-off' : 'mdi:eye-off-outline'" class="w-4 h-4" />
         </button>
+
+        <button
+          ref="settingsBtnRef"
+          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0 outline-none focus:ring-2 focus:ring-primary-400/50 dark:focus:ring-primary-500/50 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+          title="Settings"
+          @click="openSettings"
+        >
+          <Icon name="mdi:cog-outline" class="w-4 h-4" />
+        </button>
       </div>
 
       <!-- Type filter row -->
@@ -94,7 +103,7 @@
     <!-- ── Clip list (horizontal scroll) ──────────────────────────────── -->
     <div
       ref="scrollContainerRef"
-      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 outline-none"
+      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-3 outline-none"
       role="listbox"
       aria-label="Clipboard history"
       tabindex="0"
@@ -144,33 +153,7 @@
       </div>
     </div>
 
-    <!-- ── Status bar ─────────────────────────────────────────────────── -->
-    <div class="flex-shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-1.5 flex items-center justify-between">
-      <div class="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500">
-        <span>{{ clipboard.filteredClips.value.length }} clip{{ clipboard.filteredClips.value.length !== 1 ? 's' : '' }}</span>
-        <span v-if="clipboard.activeTypeFilter.value" class="flex items-center gap-1">
-          · filtered by <strong class="font-medium">{{ clipboard.activeTypeFilter.value }}</strong>
-        </span>
-      </div>
-      <div class="flex items-center gap-3 text-[10px] text-gray-400 dark:text-gray-500">
-        <span class="flex items-center gap-1">
-          <UiKbd size="xs">←</UiKbd><UiKbd size="xs">→</UiKbd> navigate
-        </span>
-        <span class="flex items-center gap-1">
-          <UiKbd size="xs">Enter</UiKbd> copy
-        </span>
-        <span class="flex items-center gap-1">
-          <UiKbd size="xs">Esc</UiKbd> dismiss
-        </span>
-        <button
-          v-if="clipboard.clipCount.value > 0"
-          class="text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-          @click="confirmClearAll"
-        >
-          Clear all
-        </button>
-      </div>
-    </div>
+
   </div>
 </template>
 
@@ -180,10 +163,11 @@ import { useClipboard } from '~/composables/useClipboard'
 const clipboard = useClipboard()
 const toast = useToast()
 
-const emit = defineEmits(['dismiss'])
+const emit = defineEmits(['dismiss', 'open-settings'])
 
 const searchInputRef = ref(null)
 const favBtnRef = ref(null)
+const settingsBtnRef = ref(null)
 const incognitoBtnRef = ref(null)
 const filterRowRef = ref(null)
 const scrollContainerRef = ref(null)
@@ -200,7 +184,7 @@ const zoneIndex = ref(0) // horizontal index within the active zone
 const lastZoneIndex = ref([0, 0, 0, 0]) // remembered index per zone
 
 function getActionButtons() {
-  return [favBtnRef.value, incognitoBtnRef.value].filter(Boolean)
+  return [favBtnRef.value, settingsBtnRef.value, incognitoBtnRef.value].filter(Boolean)
 }
 
 function getFilterButtons() {
@@ -313,6 +297,14 @@ function handleDelete(id) {
 function confirmClearAll() {
   clipboard.clearAll()
   toast.show('All clips cleared', { type: 'info', icon: 'mdi:delete-sweep-outline', duration: 2000 })
+}
+
+function openSettings() {
+  if (globalThis.window?.electronAPI?.openSettingsWindow) {
+    globalThis.window.electronAPI.openSettingsWindow()
+  } else {
+    emit('open-settings')
+  }
 }
 
 function toggleIncognito() {
