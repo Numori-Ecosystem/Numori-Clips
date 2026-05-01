@@ -264,8 +264,6 @@ export default class NumoriClipsHelper extends Extension {
 
   _findWindow(wmClass, titleHint) {
     const actors = global.get_window_actors();
-    let fallback = null;
-    let partialMatch = null;
     for (const actor of actors) {
       const win = actor.get_meta_window();
       if (!win) continue;
@@ -274,18 +272,13 @@ export default class NumoriClipsHelper extends Extension {
       if (wc === wmClass || wcInstance === wmClass) {
         if (titleHint) {
           const title = win.get_title() || '';
-          // Exact title match is strongest
           if (title === titleHint) return { win, actor };
-          // Partial (contains) match as second priority
-          if (!partialMatch && title.includes(titleHint)) partialMatch = { win, actor };
-          // First WM class match as last-resort fallback
-          if (!fallback) fallback = { win, actor };
         } else {
           return { win, actor };
         }
       }
     }
-    return partialMatch || fallback;
+    return null;
   }
 
   _positionWindow(wmClass, x, y, width, height, titleHint) {

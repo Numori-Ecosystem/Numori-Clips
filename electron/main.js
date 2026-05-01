@@ -162,6 +162,7 @@ function applyWindowBounds(bounds) {
 
 let mainWindowVisible = false
 let mainWindowBounds = null
+let blurGraceUntil = 0
 
 /** WM class candidates to try when talking to the GNOME extension. */
 const WM_CLASS_CANDIDATES = ['numori-clips', 'electron', 'Electron']
@@ -169,7 +170,6 @@ const WM_CLASS_CANDIDATES = ['numori-clips', 'electron', 'Electron']
 function tryExtensionShow(bounds, title) {
   for (const wm of WM_CLASS_CANDIDATES) {
     if (showWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, title)) return true
-    if (showWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, '')) return true
   }
   return false
 }
@@ -177,7 +177,6 @@ function tryExtensionShow(bounds, title) {
 function tryExtensionHide(title) {
   for (const wm of WM_CLASS_CANDIDATES) {
     if (hideWindowViaExtension(wm, title)) return true
-    if (hideWindowViaExtension(wm, '')) return true
   }
   return false
 }
@@ -185,7 +184,6 @@ function tryExtensionHide(title) {
 function tryExtensionPosition(bounds, title) {
   for (const wm of WM_CLASS_CANDIDATES) {
     if (positionWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, title)) return true
-    if (positionWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, '')) return true
   }
   return false
 }
@@ -193,15 +191,15 @@ function tryExtensionPosition(bounds, title) {
 function dismissMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed() || !mainWindowVisible) return
   mainWindowVisible = false
-  const title = mainWindow.getTitle() || 'Numori Clips'
-  // On GNOME Wayland, use the extension to hide (with slide-down animation)
+
   if (IS_GNOME && IS_WAYLAND) {
+    const title = mainWindow.getTitle() || 'Numori Clips'
     if (tryExtensionHide(title)) {
-      // Extension handled the hide — give the animation time then actually hide the Electron window
       setTimeout(() => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide() }, 200)
       return
     }
   }
+
   mainWindow.hide()
 }
 
@@ -236,11 +234,11 @@ async function createWindow() {
   mainWindowVisible = false
 
   mainWindow.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); dismissMainWindow() } })
+
   mainWindow.on('blur', () => {
     if (!app.isQuitting && mainWindow && !mainWindow.isDestroyed() && mainWindowVisible) {
-      // Don't dismiss if focus moved to another Numori window (settings, about, auth, wizard)
-      const focused = BrowserWindow.getFocusedWindow()
-      if (focused && (focused === settingsWindow || focused === aboutWindow || focused === authWindow || focused === wizardWindow)) return
+      // Grace period after show — the extension animation can briefly lose focus
+      if (Date.now() < blurGraceUntil) return
       dismissMainWindow()
     }
   })
@@ -251,6 +249,9 @@ async function createWindow() {
   })
 
   mainWindow.loadURL(DEV_BASE ? `${DEV_BASE}clips` : 'app://./clips')
+
+  // Prevent Nuxt from overriding the window title — we need distinct titles for the GNOME extension
+  mainWindow.on('page-title-updated', (e) => e.preventDefault())
 
   await new Promise((resolve) => {
     mainWindow.webContents.on('did-finish-load', () => {
@@ -281,6 +282,7 @@ async function showMainWindow() {
   if (IS_GNOME && IS_WAYLAND) {
     // Pre-position the window off-screen before showing so GNOME doesn't flash it centered
     mainWindow.setBounds({ ...mainWindowBounds, y: mainWindowBounds.y + mainWindowBounds.height + 100 })
+    blurGraceUntil = Date.now() + 500
     mainWindow.show()
     mainWindow.focus()
     mainWindowVisible = true
@@ -317,6 +319,7 @@ function openSettingsWindow(section) {
   })
   settingsWindow.setMenuBarVisibility(false)
   settingsWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  settingsWindow.on('page-title-updated', (e) => e.preventDefault())
   const qs = section ? `?section=${section}` : ''
   settingsWindow.loadURL(DEV_BASE ? `${DEV_BASE}settings${qs}` : `app://./settings${qs}`)
   settingsWindow.on('closed', () => { settingsWindow = null })
@@ -334,6 +337,7 @@ function openAboutWindow() {
   })
   aboutWindow.setMenuBarVisibility(false)
   aboutWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  aboutWindow.on('page-title-updated', (e) => e.preventDefault())
   aboutWindow.loadURL(DEV_BASE ? `${DEV_BASE}about` : 'app://./about')
   aboutWindow.on('closed', () => { aboutWindow = null })
 }
@@ -350,6 +354,7 @@ function openAuthWindow() {
   })
   authWindow.setMenuBarVisibility(false)
   authWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  authWindow.on('page-title-updated', (e) => e.preventDefault())
   authWindow.loadURL(DEV_BASE ? `${DEV_BASE}auth` : 'app://./auth')
   authWindow.on('closed', () => { authWindow = null })
 }
@@ -368,6 +373,7 @@ function openVerifyEmailWindow() {
   })
   verifyEmailWindow.setMenuBarVisibility(false)
   verifyEmailWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  verifyEmailWindow.on('page-title-updated', (e) => e.preventDefault())
   verifyEmailWindow.loadURL(DEV_BASE ? `${DEV_BASE}verify-email` : 'app://./verify-email')
   verifyEmailWindow.on('closed', () => { verifyEmailWindow = null })
 }
@@ -385,6 +391,7 @@ function openWizardWindow() {
   })
   wizardWindow.setMenuBarVisibility(false)
   wizardWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  wizardWindow.on('page-title-updated', (e) => e.preventDefault())
   wizardWindow.loadURL(DEV_BASE ? `${DEV_BASE}wizard` : 'app://./wizard')
   wizardWindow.on('closed', () => { wizardWindow = null; showMainWindow() })
 }
