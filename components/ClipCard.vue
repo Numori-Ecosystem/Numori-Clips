@@ -70,7 +70,22 @@
       <!-- Content preview -->
       <!-- Image -->
       <div v-if="clip.type === 'image'" class="flex-1 min-h-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
-        <img :src="clip.content" alt="Clipboard image" class="w-full h-full object-contain" loading="lazy" />
+        <!-- SVG content: render inline via data URI -->
+        <img
+          v-if="clip.meta?.svg"
+          :src="svgDataUrl"
+          alt="SVG image"
+          class="w-full h-full object-contain"
+          loading="lazy"
+        />
+        <!-- Data URL / binary image (including converted file paths) -->
+        <img
+          v-else
+          :src="clip.content"
+          alt="Clipboard image"
+          class="w-full h-full object-contain"
+          loading="lazy"
+        />
       </div>
 
       <!-- Color -->
@@ -146,6 +161,12 @@ const typeConfig = {
 const typeIcon = computed(() => typeConfig[props.clip.type]?.icon || 'mdi:text')
 const typeLabel = computed(() => typeConfig[props.clip.type]?.label || 'Text')
 const typeBadgeClasses = computed(() => typeConfig[props.clip.type]?.badge || typeConfig.text.badge)
+
+// ── Image source helpers ─────────────────────────────────────────────────
+const svgDataUrl = computed(() => {
+  if (!props.clip.meta?.svg) return ''
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(props.clip.content)}`
+})
 
 // Relative time
 const now = useNow({ interval: 30000 })

@@ -43,6 +43,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeClipboard: (content, type) =>
     ipcRenderer.send('clipboard-write', { content, type }),
 
+  readImageFile: (filePath) =>
+    ipcRenderer.invoke('read-image-file', filePath),
+
   // ── Tray actions ─────────────────────────────────────────────────────
   onTrayAction: (callback) =>
     ipcRenderer.on('tray-action', (_event, action) => callback(action)),

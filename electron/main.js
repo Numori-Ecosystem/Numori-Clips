@@ -15,6 +15,7 @@ import {
 import { join, normalize } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtension, showWindowViaExtension, hideWindowViaExtension, getExtensionStatus, installGnomeExtension, enableGnomeExtension, setShortcutViaExtension, toGtkAccelerator, needsNativeShortcuts } from './display-detect.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -579,6 +580,23 @@ ipcMain.handle('get-extension-status', () => {
 })
 ipcMain.handle('install-gnome-extension', () => installGnomeExtension())
 ipcMain.handle('enable-gnome-extension', () => enableGnomeExtension())
+ipcMain.handle('read-image-file', async (_e, filePath) => {
+  try {
+    const normalized = normalize(filePath)
+    const ext = normalized.split('.').pop().toLowerCase()
+    const mimeMap = {
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+      webp: 'image/webp', bmp: 'image/bmp', ico: 'image/x-icon',
+      avif: 'image/avif', tif: 'image/tiff', tiff: 'image/tiff', svg: 'image/svg+xml',
+    }
+    const mime = mimeMap[ext] || 'image/png'
+    const buffer = await readFile(normalized)
+    return `data:${mime};base64,${buffer.toString('base64')}`
+  } catch (err) {
+    console.error('[Numori Clips] Failed to read image file:', err)
+    return null
+  }
+})
 ipcMain.on('reposition-main-window', async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const bounds = getTargetBounds()

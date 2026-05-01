@@ -125,6 +125,25 @@ function isImageDataUrl(text) {
   return DATA_IMAGE_RE.test(text.trim())
 }
 
+// ── SVG detection ────────────────────────────────────────────────────────
+const SVG_RE = /^\s*<svg[\s>]/i
+
+function isSvgContent(text) {
+  const t = text.trim()
+  return SVG_RE.test(t) && /<\/svg>\s*$/i.test(t)
+}
+
+// ── Image file path detection ────────────────────────────────────────────
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif|tiff?)$/i
+
+function isImageFilePath(text) {
+  const t = text.trim()
+  // Single line, ends with an image extension, and looks like a path (starts with /, ~, drive letter, or file://)
+  if (t.includes('\n')) return false
+  if (!IMAGE_EXT_RE.test(t)) return false
+  return /^(?:\/|~\/|[A-Z]:\\|file:\/\/\/)/i.test(t)
+}
+
 // ── Main classifier ──────────────────────────────────────────────────────
 
 /**
@@ -144,6 +163,11 @@ export function classifyClip(content, options = {}) {
   const text = typeof content === 'string' ? content : ''
   if (!text.trim()) return { type: 'text', meta: {} }
 
+  // Raw SVG markup → render as image
+  if (isSvgContent(text)) {
+    return { type: 'image', meta: { svg: true } }
+  }
+
   // Order: most specific → least specific
   if (isColor(text)) {
     return { type: 'color', meta: { hex: parseColorHex(text) } }
@@ -160,7 +184,14 @@ export function classifyClip(content, options = {}) {
     }
   }
   if (isFilePath(text)) {
+    if (isImageFilePath(text)) {
+      return { type: 'image', meta: { filePath: text.trim() } }
+    }
     return { type: 'file', meta: { path: text.trim() } }
+  }
+  // Image file path — checked independently since FILE_PATH_RE may not match all valid paths
+  if (isImageFilePath(text)) {
+    return { type: 'image', meta: { filePath: text.trim() } }
   }
   if (isCode(text)) {
     return { type: 'code', meta: { language: detectCodeLanguage(text) } }
@@ -204,7 +235,13 @@ export function generateTitle(content, type, meta = {}) {
   if (type === 'link' && meta.domain) return meta.domain
   if (type === 'color') return content.trim().toUpperCase()
   if (type === 'emoji') return 'Emoji'
-  if (type === 'image') return 'Image'
+  if (type === 'image') {
+    if (meta.filePath) {
+      const parts = meta.filePath.replace(/\\/g, '/').split('/')
+      return parts[parts.length - 1] || 'Image'
+    }
+    return 'Image'
+  }
   if (type === 'file') {
     const parts = content.trim().replace(/\\/g, '/').split('/')
     return parts[parts.length - 1] || 'File'

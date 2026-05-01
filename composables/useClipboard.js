@@ -104,12 +104,23 @@ function createInstance() {
     const { type, meta } = classifyClip(content, options)
     const now = Date.now()
 
+    // If it's an image from a file path, read the file and convert to data URL
+    let finalContent = content
+    if (type === 'image' && meta.filePath && window.electronAPI?.readImageFile) {
+      try {
+        const dataUrl = await window.electronAPI.readImageFile(meta.filePath)
+        if (dataUrl) finalContent = dataUrl
+      } catch (err) {
+        console.error('[useClipboard] Failed to read image file:', err)
+      }
+    }
+
     const clip = {
       hash,
-      content,
+      content: finalContent,
       type,
       meta,
-      preview: generatePreview(content, type),
+      preview: generatePreview(finalContent, type),
       title: generateTitle(content, type, meta),
       favorite: false,
       syncStatus: 'local',
