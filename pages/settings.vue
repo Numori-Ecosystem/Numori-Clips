@@ -18,6 +18,7 @@
 
 <script setup>
 import { useAuthHandlers } from '~/composables/useAuthHandlers'
+import { useThemeSync } from '~/composables/useThemeSync'
 
 definePageMeta({ layout: false })
 
@@ -28,6 +29,8 @@ const toast = useToast()
 const appLock = useAppLock()
 
 const authHandlers = useAuthHandlers({ auth, appLock })
+
+useThemeSync()
 
 const settingsWindowSection = computed(() => route.query.section || 'general')
 </script>

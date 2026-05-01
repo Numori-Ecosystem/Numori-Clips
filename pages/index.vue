@@ -18,9 +18,13 @@
 </template>
 
 <script setup>
+import { useThemeSync } from '~/composables/useThemeSync'
+
 const { isElectron } = usePlatform()
 const router = useRouter()
 const welcomeWizard = useWelcomeWizard()
+
+useThemeSync()
 
 const extensionBlocked = ref(null) // null = checking, true = blocked, false = ok
 

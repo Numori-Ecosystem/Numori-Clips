@@ -5,5 +5,9 @@
 </template>
 
 <script setup>
+import { useThemeSync } from '~/composables/useThemeSync'
+
 definePageMeta({ layout: false })
+
+useThemeSync()
 </script>

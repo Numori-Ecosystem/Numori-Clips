@@ -74,6 +74,7 @@
 
 <script setup>
 import { useAuthHandlers } from '~/composables/useAuthHandlers'
+import { useThemeSync } from '~/composables/useThemeSync'
 
 definePageMeta({ layout: false })
 
@@ -83,6 +84,8 @@ const auth = useAuth()
 const toast = useToast()
 const appLock = useAppLock()
 const authHandlers = useAuthHandlers({ auth, appLock })
+
+useThemeSync()
 
 const handleClose = () => globalThis.window?.electronAPI?.close()
 const handleMinimize = () => globalThis.window?.electronAPI?.minimize()

@@ -34,9 +34,9 @@
 <script setup>
 import { useAuthHandlers } from '~/composables/useAuthHandlers'
 import { useClipboard } from '~/composables/useClipboard'
+import { useThemeSync } from '~/composables/useThemeSync'
 
 const { isElectron } = usePlatform()
-const colorMode = useColorMode()
 const localePrefs = useLocalePreferences()
 const welcomeWizard = useWelcomeWizard()
 const auth = useAuth()
@@ -48,6 +48,9 @@ const isOnline = useOnlineStatus()
 const clipboard = useClipboard()
 
 const authHandlers = useAuthHandlers({ auth, appLock })
+
+// Sync theme across Electron windows
+useThemeSync()
 
 const clipPanelRef = ref(null)
 
@@ -99,9 +102,6 @@ onMounted(async () => {
 
   if (window.electronAPI?.onTrayAction) {
     window.electronAPI.onTrayAction(async (data) => {
-      if (data.action === 'theme-changed') {
-        colorMode.preference = data.value
-      }
       if (data.action === 'toggle-incognito') {
         clipboard.incognitoMode.value = !clipboard.incognitoMode.value
         globalThis.window?.electronAPI?.setIncognito(clipboard.incognitoMode.value)
@@ -111,20 +111,10 @@ onMounted(async () => {
       }
     })
   }
-
-  if (window.electronAPI?.notifyThemeChanged) {
-    window.electronAPI.notifyThemeChanged(colorMode.preference)
-  }
 })
 
 onUnmounted(() => {
   clipboard.destroy()
-})
-
-watch(() => colorMode.preference, (newTheme) => {
-  if (window.electronAPI?.notifyThemeChanged) {
-    window.electronAPI.notifyThemeChanged(newTheme)
-  }
 })
 
 watch(() => auth.user.value, async (newUser, oldUser) => {

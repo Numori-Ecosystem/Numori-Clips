@@ -533,7 +533,17 @@ ipcMain.on('window-maximize', (e) => { const w = BrowserWindow.fromWebContents(e
 ipcMain.on('window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
 ipcMain.on('dismiss-main-window', () => dismissMainWindow())
 ipcMain.on('window-set-fullscreen', (e, flag) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!flag) })
-ipcMain.on('theme-changed', (_e, theme) => { currentTheme = theme })
+ipcMain.on('theme-changed', (e, theme) => {
+  currentTheme = theme
+  // Broadcast the theme change to all open windows except the sender
+  const senderContents = e.sender
+  const allWindows = [mainWindow, settingsWindow, aboutWindow, authWindow, verifyEmailWindow, wizardWindow]
+  for (const win of allWindows) {
+    if (win && !win.isDestroyed() && win.webContents !== senderContents) {
+      win.webContents.send('tray-action', { action: 'theme-changed', value: theme })
+    }
+  }
+})
 ipcMain.on('open-settings-window', (_e, section) => openSettingsWindow(section || undefined))
 ipcMain.on('open-about-window', () => openAboutWindow())
 ipcMain.on('open-auth-window', () => openAuthWindow())
