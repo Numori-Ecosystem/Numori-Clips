@@ -353,6 +353,19 @@ function onGlobalKeydown(e) {
     return
   }
 
+  // Tab / Shift+Tab — cycle between zones
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    lastZoneIndex.value[activeZone.value] = zoneIndex.value
+    if (e.shiftKey) {
+      activeZone.value = activeZone.value > 0 ? activeZone.value - 1 : 3
+    } else {
+      activeZone.value = activeZone.value < 3 ? activeZone.value + 1 : 0
+    }
+    focusCurrentZoneItem()
+    return
+  }
+
   // "/" always focuses search
   if (e.key === '/') {
     if (!inSearch) {
