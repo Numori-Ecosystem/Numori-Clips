@@ -12,17 +12,20 @@ export default {
   mac: {
     category: 'public.app-category.productivity',
     icon: 'icons/icon.icns',
-    target: ['dmg', 'zip'],
+    target: [
+      'dmg',
+    ],
   },
   win: {
     icon: 'icons/icon.ico',
-    target: ['nsis', 'portable'],
+    target: [
+      'nsis',
+    ],
   },
   linux: {
     icon: 'icons',
     target: [
       'rpm',
-      'AppImage',
     ],
     category: 'Utility',
   },

@@ -15,7 +15,7 @@ import {
 import { join, normalize } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawn } from 'node:child_process'
-import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtension, getExtensionStatus, installGnomeExtension, enableGnomeExtension, grabShortcutViaExtension, ungrabAllShortcutsViaExtension, toGtkAccelerator, needsNativeShortcuts, registerKdeShortcut } from './display-detect.js'
+import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtension, getExtensionStatus, installGnomeExtension, enableGnomeExtension, setShortcutViaExtension, toGtkAccelerator, needsNativeShortcuts } from './display-detect.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const STATIC_DIR = join(__dirname, '..', '.output', 'public')
@@ -33,6 +33,10 @@ let lastClipboardImageHash = ''
 let incognitoMode = false
 let currentTheme = 'light'
 
+function getWindowBgColor() {
+  return currentTheme === 'dark' ? '#0a0a0f' : '#ffffff'
+}
+
 protocol.registerSchemesAsPrivileged([{
   scheme: 'app',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
@@ -49,6 +53,11 @@ function simpleHash(str) {
 }
 
 function startClipboardPolling() {
+  // On GNOME Wayland, clipboard is monitored by the shell extension via
+  // Meta.Selection owner-changed (like Pano). The D-Bus listener handles it.
+  if (IS_GNOME && IS_WAYLAND) return
+
+  // On macOS, Windows, X11 Linux, KDE: poll the clipboard from the main process.
   lastClipboardText = clipboard.readText() || ''
   const img = clipboard.readImage()
   if (img && !img.isEmpty()) lastClipboardImageHash = simpleHash(img.toDataURL())
@@ -142,73 +151,122 @@ function boundsForWorkArea(wa) {
  * 3. Electron cursor API (macOS, Windows, X11)
  * 4. Fallback: primary display
  */
+let cachedTargetBounds = null
+let cachedTargetBoundsTime = 0
+
 function getTargetBounds() {
+  // Cache for 5 seconds to avoid repeated slow D-Bus calls
+  const now = Date.now()
+  if (cachedTargetBounds && now - cachedTargetBoundsTime < 5000) return cachedTargetBounds
+
   const result = getActiveDisplay()
-  if (result?.workArea) return boundsForWorkArea(result.workArea)
-  if (result?.display) return boundsForWorkArea(result.display.workArea)
-  return boundsForWorkArea(screen.getPrimaryDisplay().workArea)
+  if (result?.workArea) cachedTargetBounds = boundsForWorkArea(result.workArea)
+  else if (result?.display) cachedTargetBounds = boundsForWorkArea(result.display.workArea)
+  else cachedTargetBounds = boundsForWorkArea(screen.getPrimaryDisplay().workArea)
+
+  cachedTargetBoundsTime = now
+  return cachedTargetBounds
 }
 
 /**
- * Position the main window at the bottom of the target display.
- * On GNOME Wayland, Electron's setBounds is ignored by the compositor,
- * so we use the GNOME extension's PositionWindow D-Bus method which calls
- * Mutter's move_resize_frame internally.
+ * Position the window via extension on GNOME Wayland, or setBounds elsewhere.
  */
 function applyWindowBounds(bounds) {
   if (!mainWindow || mainWindow.isDestroyed()) return
-
-  // Try Electron's setBounds first (works on macOS, Windows, X11)
   mainWindow.setBounds(bounds)
-
-  // On GNOME Wayland, setBounds is ignored — use the extension
-  if (IS_WAYLAND) {
-    setTimeout(() => {
-      // Try app name first, then 'electron' (dev mode)
-      const positioned = positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height)
-        || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height)
-        || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height)
-      if (!positioned) {
-        console.warn('[Numori Clips] Could not position window via GNOME extension')
-      }
-    }, 200)
+  if (IS_GNOME && IS_WAYLAND) {
+    positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height)
+    || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height)
+    || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height)
   }
 }
 
 // ── Main window ──────────────────────────────────────────────────────────
 
+let mainWindowVisible = false
+let mainWindowBounds = null
+
+function dismissMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed() || !mainWindowVisible) return
+  mainWindowVisible = false
+  mainWindow.hide()
+}
+
 async function createWindow() {
-  const bounds = getTargetBounds()
-  console.log('[Numori Clips] createWindow bounds:', JSON.stringify(bounds))
+  if (mainWindow && !mainWindow.isDestroyed()) return // prevent duplicates
 
-  mainWindow = new BrowserWindow({
-    ...bounds,
-    resizable: false, movable: false, fullscreenable: false,
-    maximizable: false, minimizable: true,
-    title: 'Numori Clips', frame: false, skipTaskbar: false,
-    webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
-  })
-  applyWindowBounds(bounds)
+  const extStatus = (IS_GNOME && IS_WAYLAND) ? getExtensionStatus() : 'not-needed'
+  const needsSetup = extStatus === 'not-installed' || extStatus === 'installed-needs-restart'
+
+  mainWindowBounds = needsSetup ? null : getTargetBounds()
+
+  const windowOpts = needsSetup
+    ? {
+        width: 450, height: 400, show: false,
+        resizable: false, movable: true, fullscreenable: false,
+        maximizable: false, minimizable: true,
+        title: 'Numori Clips', frame: false, skipTaskbar: true, center: true, alwaysOnTop: true,
+        backgroundColor: getWindowBgColor(),
+        webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
+      }
+    : {
+        ...mainWindowBounds, show: false,
+        resizable: false, movable: false, fullscreenable: false,
+        maximizable: false, minimizable: true,
+        title: 'Numori Clips', frame: false, skipTaskbar: true, alwaysOnTop: true,
+        backgroundColor: getWindowBgColor(),
+        webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
+      }
+
+  mainWindow = new BrowserWindow(windowOpts)
   mainWindow.setMenuBarVisibility(false)
+  mainWindowVisible = false
 
-  mainWindow.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); mainWindow.hide() } })
-  mainWindow.on('blur', () => { if (!app.isQuitting && mainWindow && !mainWindow.isDestroyed()) mainWindow.hide() })
+  mainWindow.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); dismissMainWindow() } })
+  mainWindow.on('blur', () => { if (!app.isQuitting && mainWindow && !mainWindow.isDestroyed() && mainWindowVisible) dismissMainWindow() })
   mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
   mainWindow.webContents.on('before-input-event', (e, input) => {
     if ((input.key === 'r' && (input.control || input.meta)) || input.key === 'F5') e.preventDefault()
+    if (input.key === 'Escape' && input.type === 'keyDown') dismissMainWindow()
   })
 
   mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || 'app://.')
-  mainWindow.webContents.on('did-finish-load', () => startClipboardPolling())
+
+  await new Promise((resolve) => {
+    mainWindow.webContents.on('did-finish-load', () => {
+      startClipboardPolling()
+      resolve()
+    })
+  })
+
+  if (needsSetup) {
+    mainWindow.show()
+    mainWindowVisible = true
+  }
 }
 
 async function showMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) { await createWindow(); return }
-  const bounds = getTargetBounds()
-  if (mainWindow.isMinimized()) mainWindow.restore()
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    await createWindow()
+  }
+  if (mainWindowVisible) return
+
+  // Always refresh bounds (different monitor, etc)
+  cachedTargetBounds = null
+  cachedTargetBoundsTime = 0
+  mainWindowBounds = getTargetBounds()
+
+  mainWindow.setBounds(mainWindowBounds)
   mainWindow.show()
   mainWindow.focus()
-  applyWindowBounds(bounds)
+  mainWindowVisible = true
+
+  // Reposition after show — compositor needs a moment on Wayland
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      applyWindowBounds(mainWindowBounds)
+    }
+  }, 50)
 }
 
 // ── Settings window ──────────────────────────────────────────────────────
@@ -217,7 +275,7 @@ function openSettingsWindow(section) {
   if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.focus(); return }
   settingsWindow = new BrowserWindow({
     width: 800, height: 600, minWidth: 480, minHeight: 400,
-    title: 'Numori Clips — Settings', frame: false, titleBarStyle: 'hidden',
+    title: 'Numori Clips — Settings', frame: false, titleBarStyle: 'hidden', backgroundColor: getWindowBgColor(),
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: -20, y: -20 } } : {}),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   })
@@ -234,7 +292,7 @@ function openAboutWindow() {
   if (aboutWindow && !aboutWindow.isDestroyed()) { aboutWindow.focus(); return }
   aboutWindow = new BrowserWindow({
     width: 500, height: 650, minWidth: 400, minHeight: 500,
-    title: 'About Numori Clips', frame: false, titleBarStyle: 'hidden',
+    title: 'About Numori Clips', frame: false, titleBarStyle: 'hidden', backgroundColor: getWindowBgColor(),
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: -20, y: -20 } } : {}),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   })
@@ -250,7 +308,7 @@ function openAuthWindow() {
   if (authWindow && !authWindow.isDestroyed()) { authWindow.focus(); return }
   authWindow = new BrowserWindow({
     width: 450, height: 580, minWidth: 380, minHeight: 500, resizable: true,
-    title: 'Sign In — Numori Clips', frame: false, titleBarStyle: 'hidden',
+    title: 'Sign In — Numori Clips', frame: false, titleBarStyle: 'hidden', backgroundColor: getWindowBgColor(),
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: -20, y: -20 } } : {}),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   })
@@ -267,7 +325,7 @@ function openWizardWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide()
   wizardWindow = new BrowserWindow({
     width: 550, height: 520, minWidth: 450, minHeight: 450, resizable: false,
-    title: 'Welcome — Numori Clips', frame: false, titleBarStyle: 'hidden',
+    title: 'Welcome — Numori Clips', frame: false, titleBarStyle: 'hidden', backgroundColor: getWindowBgColor(),
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: -20, y: -20 } } : {}),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   })
@@ -279,13 +337,12 @@ function openWizardWindow() {
 
 // ── Global shortcuts ─────────────────────────────────────────────────────
 
-const registeredShortcuts = new Map()
 let dbusShortcutMonitor = null
 
 function togglePanelAction() {
-  if (!mainWindow || mainWindow.isDestroyed()) { createWindow(); return }
-  if (mainWindow.isVisible() && mainWindow.isFocused()) mainWindow.hide()
-  else { showMainWindow(); mainWindow.webContents.send('tray-action', { action: 'toggle-panel' }) }
+  if (!mainWindow || mainWindow.isDestroyed()) { createWindow().then(() => showMainWindow()); return }
+  if (mainWindowVisible) dismissMainWindow()
+  else showMainWindow()
 }
 
 function toggleIncognitoAction() {
@@ -293,90 +350,82 @@ function toggleIncognitoAction() {
   mainWindow.webContents.send('tray-action', { action: 'toggle-incognito' })
 }
 
-function unregisterAllCustomShortcuts() {
-  for (const accel of registeredShortcuts.keys()) {
-    try { globalShortcut.unregister(accel) } catch { /* ignore */ }
-  }
-  registeredShortcuts.clear()
-  // Also ungrab from GNOME extension
-  ungrabAllShortcutsViaExtension()
-}
-
-function registerShortcutElectron(accelerator, callback) {
-  if (!accelerator) return false
-  try {
-    const electronAccel = accelerator.replace(/Super/g, 'Super')
-    globalShortcut.register(electronAccel, callback)
-    registeredShortcuts.set(electronAccel, callback)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function registerShortcutGnome(accelerator, name) {
-  if (!accelerator) return false
-  const gtkAccel = toGtkAccelerator(accelerator)
-  if (!gtkAccel) return false
-  return grabShortcutViaExtension(gtkAccel, name)
-}
-
 function startDbusShortcutListener() {
-  if (dbusShortcutMonitor) return
+  if (dbusShortcutMonitor || !IS_GNOME || !IS_WAYLAND) return
   try {
-    // Use gdbus monitor to listen for ShortcutActivated signals
     const proc = spawn('gdbus', [
-      'monitor', '--session',
-      '--dest', 'app.numori.ClipsHelper',
-      '--object-path', '/app/numori/ClipsHelper',
+      'monitor', '--session', '--dest', 'app.numori.ClipsHelper', '--object-path', '/app/numori/ClipsHelper',
     ], { stdio: ['ignore', 'pipe', 'ignore'] })
 
+    let buffer = ''
     proc.stdout.on('data', (data) => {
-      const line = data.toString()
-      // Signal format: /app/numori/ClipsHelper: app.numori.ClipsHelper.ShortcutActivated ('toggle-panel',)
-      if (line.includes('ShortcutActivated')) {
-        if (line.includes('toggle-panel')) togglePanelAction()
-        else if (line.includes('toggle-incognito')) toggleIncognitoAction()
+      buffer += data.toString()
+      // Process complete lines
+      const lines = buffer.split('\n')
+      buffer = lines.pop() // keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (line.includes('ShortcutActivated')) {
+          if (line.includes('toggle-panel')) togglePanelAction()
+          else if (line.includes('toggle-incognito')) toggleIncognitoAction()
+        }
+
+        if (line.includes('ClipboardChanged') && mainWindow && !mainWindow.isDestroyed()) {
+          // gdbus uses single or double quotes depending on content:
+          //   ('text', 'simple content')
+          //   ('text', "content with 'quotes'")
+          const typeMatch = line.match(/ClipboardChanged\s*\('(\w+)'/)
+          if (typeMatch) {
+            const type = typeMatch[1]
+            // Extract content: everything between the second quote pair after the type
+            const afterType = line.substring(line.indexOf(typeMatch[0]) + typeMatch[0].length)
+            let content = null
+
+            // Try single-quoted: , 'content')
+            const sq = afterType.match(/,\s*'((?:[^'\\]|\\.)*)'\s*\)/)
+            if (sq) {
+              content = sq[1].replace(/\\n/g, '\n').replace(/\\'/g, "'")
+            } else {
+              // Try double-quoted: , "content")
+              const dq = afterType.match(/,\s*"((?:[^"\\]|\\.)*)"\s*\)/)
+              if (dq) {
+                content = dq[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+              }
+            }
+
+            if (content && content.trim()) {
+              mainWindow.webContents.send('clipboard-new-content', { type, content: content.trim() })
+            }
+          }
+        }
       }
     })
-
     proc.on('close', () => { dbusShortcutMonitor = null })
     dbusShortcutMonitor = proc
-  } catch {
-    console.warn('[Numori Clips] Failed to start D-Bus shortcut listener')
-  }
+  } catch { /* ignore */ }
 }
 
 function stopDbusShortcutListener() {
-  if (dbusShortcutMonitor) {
-    dbusShortcutMonitor.kill()
-    dbusShortcutMonitor = null
-  }
+  if (dbusShortcutMonitor) { dbusShortcutMonitor.kill(); dbusShortcutMonitor = null }
 }
 
 function registerGlobalShortcuts(togglePanel, toggleIncognito) {
-  unregisterAllCustomShortcuts()
+  // Unregister old Electron shortcuts
+  globalShortcut.unregisterAll()
 
   const panelAccel = togglePanel || 'Super+Shift+V'
 
   if (IS_GNOME && IS_WAYLAND) {
-    // GNOME Wayland: use our shell extension's grab_accelerator
-    registerShortcutGnome(panelAccel, 'toggle-panel')
-    if (toggleIncognito) registerShortcutGnome(toggleIncognito, 'toggle-incognito')
+    // GNOME Wayland: use extension's GSettings + wm.addKeybinding (like ddterm)
+    setShortcutViaExtension('toggle-panel', toGtkAccelerator(panelAccel))
+    setShortcutViaExtension('toggle-incognito', toggleIncognito ? toGtkAccelerator(toggleIncognito) : '')
     startDbusShortcutListener()
-  } else if (IS_KDE && IS_WAYLAND) {
-    // KDE Wayland: register via KGlobalAccel, listen via D-Bus
-    // KDE shortcuts trigger D-Bus activation of the app, so we also
-    // try Electron's globalShortcut as it partially works on some KDE versions
-    registerKdeShortcut(panelAccel, 'toggle-panel')
-    if (toggleIncognito) registerKdeShortcut(toggleIncognito, 'toggle-incognito')
-    // Also try Electron native as a fallback (works on some KDE Wayland setups)
-    registerShortcutElectron(panelAccel, togglePanelAction)
-    if (toggleIncognito) registerShortcutElectron(toggleIncognito, toggleIncognitoAction)
   } else {
-    // macOS, Windows, X11 Linux: Electron's globalShortcut works
-    registerShortcutElectron(panelAccel, togglePanelAction)
-    if (toggleIncognito) registerShortcutElectron(toggleIncognito, toggleIncognitoAction)
+    // macOS, Windows, X11, KDE: use Electron's globalShortcut
+    try { globalShortcut.register(panelAccel, togglePanelAction) } catch (e) { console.warn('[Numori Clips] Failed to register shortcut:', panelAccel, e) }
+    if (toggleIncognito) {
+      try { globalShortcut.register(toggleIncognito, toggleIncognitoAction) } catch (e) { console.warn('[Numori Clips] Failed to register shortcut:', toggleIncognito, e) }
+    }
   }
 }
 
@@ -405,6 +454,8 @@ app.whenReady().then(async () => {
   createWindow()
   createTray()
   registerGlobalShortcuts() // defaults: Super+Shift+V for toggle panel
+  // On GNOME Wayland, start D-Bus listener for clipboard + shortcuts
+  if (IS_GNOME && IS_WAYLAND) startDbusShortcutListener()
 })
 
 const gotTheLock = app.requestSingleInstanceLock()
@@ -416,6 +467,7 @@ else { app.on('second-instance', () => showMainWindow()) }
 ipcMain.on('window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize())
 ipcMain.on('window-maximize', (e) => { const w = BrowserWindow.fromWebContents(e.sender); w?.isMaximized() ? w.unmaximize() : w?.maximize() })
 ipcMain.on('window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
+ipcMain.on('dismiss-main-window', () => dismissMainWindow())
 ipcMain.on('window-set-fullscreen', (e, flag) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!flag) })
 ipcMain.on('theme-changed', (_e, theme) => { currentTheme = theme; rebuildTrayMenu() })
 ipcMain.on('open-settings-window', (_e, section) => openSettingsWindow(section || undefined))
@@ -479,6 +531,6 @@ ipcMain.on('reposition-main-window', async () => {
 
 // ── Cleanup ──────────────────────────────────────────────────────────────
 
-app.on('will-quit', () => { stopClipboardPolling(); stopDbusShortcutListener(); unregisterAllCustomShortcuts(); globalShortcut.unregisterAll(); if (tray) { tray.destroy(); tray = null } })
+app.on('will-quit', () => { stopClipboardPolling(); stopDbusShortcutListener(); globalShortcut.unregisterAll(); if (tray) { tray.destroy(); tray = null } })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin' && !tray) app.quit() })
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); else showMainWindow() })

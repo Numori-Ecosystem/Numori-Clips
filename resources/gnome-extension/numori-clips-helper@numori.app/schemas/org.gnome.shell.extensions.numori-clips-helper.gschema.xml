@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.numori-clips-helper"
+          path="/org/gnome/shell/extensions/numori-clips-helper/">
+    <key name="toggle-panel" type="as">
+      <default><![CDATA[['<Super><Shift>v']]]></default>
+      <summary>Toggle clipboard panel</summary>
+    </key>
+    <key name="toggle-incognito" type="as">
+      <default><![CDATA[[]]]></default>
+      <summary>Toggle incognito mode</summary>
+    </key>
+  </schema>
+</schemalist>

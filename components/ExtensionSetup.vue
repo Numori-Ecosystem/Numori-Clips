@@ -36,14 +36,9 @@
         <p class="text-xs text-gray-500 dark:text-gray-500 mb-6 max-w-sm">
           This is a GNOME requirement — new extensions only load when the session starts.
         </p>
-        <div class="flex items-center gap-3">
-          <UiButton variant="outline" color="gray" :loading="rechecking" @click="recheck">
-            <Icon v-if="!rechecking" name="mdi:refresh" class="w-4 h-4" /> Re-check
-          </UiButton>
-          <UiButton variant="solid" color="primary" @click="emit('continue')">
-            Continue Anyway
-          </UiButton>
-        </div>
+        <UiButton variant="outline" color="gray" :loading="rechecking" @click="recheck">
+          <Icon v-if="!rechecking" name="mdi:refresh" class="w-4 h-4" /> Re-check
+        </UiButton>
       </template>
     </template>
 

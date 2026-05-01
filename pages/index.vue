@@ -34,8 +34,13 @@
 
     <!-- ═══ Normal main window ═══ -->
     <template v-else>
-      <!-- Extension blocker: if extension is needed but not working, show setup prompt -->
-      <div v-if="extensionBlocked" class="h-full flex flex-col bg-white dark:bg-gray-925">
+      <!-- Checking extension status -->
+      <div v-if="extensionBlocked === null" class="h-full flex items-center justify-center bg-white dark:bg-gray-925">
+        <Icon name="mdi:loading" class="w-6 h-6 text-gray-400 animate-spin" />
+      </div>
+
+      <!-- Extension blocker -->
+      <div v-else-if="extensionBlocked" class="h-full flex flex-col bg-white dark:bg-gray-925">
         <ExtensionSetup @continue="recheckExtension" @status-changed="onExtensionStatus" />
       </div>
 
@@ -157,7 +162,7 @@ localePrefs.ready.then(() => { sw.setPollInterval(localePrefs.preferences.update
 const showSettings = ref(false)
 const settingsInitialSection = ref(null)
 const clipPanelRef = ref(null)
-const extensionBlocked = ref(false)
+const extensionBlocked = ref(null) // null = checking, true = blocked, false = ok
 
 const onExtensionStatus = (status) => {
   extensionBlocked.value = (status === 'not-installed' || status === 'installed-needs-restart')
@@ -188,7 +193,7 @@ const openSettings = (section) => {
 
 const dismissMainWindow = () => {
   if (isElectron) {
-    globalThis.window?.electronAPI?.close()
+    globalThis.window?.electronAPI?.dismissMainWindow()
   }
 }
 
@@ -210,8 +215,11 @@ onMounted(async () => {
     const extStatus = await globalThis.window.electronAPI.getExtensionStatus()
     if (extStatus === 'not-installed' || extStatus === 'installed-needs-restart') {
       extensionBlocked.value = true
-      // Still check wizard — but don't block on it, extension setup takes priority
+    } else {
+      extensionBlocked.value = false
     }
+  } else {
+    extensionBlocked.value = false
   }
 
   // On Electron, check if wizard needs to show
