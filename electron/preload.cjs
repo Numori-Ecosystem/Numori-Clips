@@ -53,6 +53,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Incognito mode ───────────────────────────────────────────────────
   setIncognito: (enabled) => ipcRenderer.send('set-incognito', enabled),
 
+  // ── Ignored apps ───────────────────────────────────────────────────
+  setIgnoredApps: (appNames) => ipcRenderer.send('set-ignored-apps', appNames),
+
   // ── Shortcuts ──────────────────────────────────────────────────────
   updateShortcuts: (shortcuts) => ipcRenderer.send('update-shortcuts', shortcuts),
 

@@ -35,6 +35,7 @@
 import { useAuthHandlers } from '~/composables/useAuthHandlers'
 import { useClipboard } from '~/composables/useClipboard'
 import { useThemeSync } from '~/composables/useThemeSync'
+import { useIgnoredApps } from '~/composables/useIgnoredApps'
 
 const { isElectron } = usePlatform()
 const localePrefs = useLocalePreferences()
@@ -46,6 +47,7 @@ const privacyScreen = usePrivacyScreen()
 const sw = useServiceWorker()
 const isOnline = useOnlineStatus()
 const clipboard = useClipboard()
+const ignoredApps = useIgnoredApps()
 
 const authHandlers = useAuthHandlers({ auth, appLock })
 
@@ -90,6 +92,10 @@ onMounted(async () => {
   appLock.loadFromServer()
   privacyScreen.loadFromServer()
   await clipboard.init()
+
+  // Load ignored apps list and sync to Electron main process
+  await ignoredApps.init()
+  ignoredApps.notifyElectron()
 
   // Sync saved shortcuts to main process
   await localePrefs.ready

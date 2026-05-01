@@ -34,6 +34,7 @@ let lastClipboardText = ''
 let lastClipboardImageHash = ''
 let incognitoMode = false
 let currentTheme = 'light'
+let ignoredAppNames = []
 
 function getWindowBgColor() {
   return currentTheme === 'dark' ? '#0a0a0f' : '#ffffff'
@@ -54,6 +55,58 @@ function simpleHash(str) {
   return hash.toString(36)
 }
 
+/**
+ * Detect the name of the currently focused application.
+ *
+ * - macOS: uses AppleScript to query the frontmost app name
+ * - Linux (X11): uses xdotool to get the active window's WM_CLASS
+ * - Linux (Wayland/GNOME): uses gdbus to query the extension
+ * - Windows: uses powershell to get the foreground window process name
+ *
+ * Returns the app name string, or null if detection fails.
+ */
+function getActiveWindowName() {
+  try {
+    if (process.platform === 'darwin') {
+      const result = require('node:child_process')
+        .execSync('osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\'', { encoding: 'utf8', timeout: 1000, stdio: 'pipe' })
+      return result.trim() || null
+    }
+    if (process.platform === 'win32') {
+      const result = require('node:child_process')
+        .execSync('powershell -NoProfile -Command "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition \'[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();\' -Name Win32 -Namespace Temp -PassThru)::GetForegroundWindow()}).ProcessName"', { encoding: 'utf8', timeout: 2000, stdio: 'pipe' })
+      return result.trim() || null
+    }
+    // Linux
+    if (!IS_WAYLAND) {
+      // X11: use xdotool
+      const result = require('node:child_process')
+        .execSync('xdotool getactivewindow getwindowclassname 2>/dev/null || xdotool getactivewindow getwindowname 2>/dev/null', { encoding: 'utf8', timeout: 1000, stdio: 'pipe' })
+      return result.trim() || null
+    }
+    // Wayland — limited; try reading from GNOME extension if available
+    if (IS_GNOME) {
+      try {
+        const result = require('node:child_process')
+          .execSync('gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "global.display.focus_window ? global.display.focus_window.get_wm_class() : \'\'"', { encoding: 'utf8', timeout: 1000, stdio: 'pipe' })
+        const match = result.match(/'([^']+)'/)
+        if (match && match[1]) return match[1]
+      } catch { /* extension not available */ }
+    }
+  } catch { /* detection not available on this platform */ }
+  return null
+}
+
+/**
+ * Check if the given app name matches any entry in the ignored apps list.
+ * Uses case-insensitive substring matching.
+ */
+function isAppInIgnoredList(appName) {
+  if (!appName || ignoredAppNames.length === 0) return false
+  const lower = appName.toLowerCase()
+  return ignoredAppNames.some((name) => lower.includes(name.toLowerCase()))
+}
+
 function startClipboardPolling() {
   // On GNOME Wayland, clipboard is monitored by the shell extension via
   // Meta.Selection owner-changed (like Pano). The D-Bus listener handles it.
@@ -67,6 +120,10 @@ function startClipboardPolling() {
   clipboardPollInterval = setInterval(() => {
     if (incognitoMode || !mainWindow || mainWindow.isDestroyed()) return
     try {
+      // Check if the foreground app is in the ignored list
+      const activeApp = getActiveWindowName()
+      if (isAppInIgnoredList(activeApp)) return
+
       const img = clipboard.readImage()
       if (img && !img.isEmpty()) {
         const dataUrl = img.toDataURL()
@@ -74,7 +131,7 @@ function startClipboardPolling() {
         if (imgHash !== lastClipboardImageHash) {
           lastClipboardImageHash = imgHash
           lastClipboardText = ''
-          mainWindow.webContents.send('clipboard-new-content', { type: 'image', content: dataUrl })
+          mainWindow.webContents.send('clipboard-new-content', { type: 'image', content: dataUrl, sourceApp: activeApp })
           return
         }
       }
@@ -83,7 +140,7 @@ function startClipboardPolling() {
         lastClipboardText = text
         const ci = clipboard.readImage()
         if (ci && !ci.isEmpty()) lastClipboardImageHash = simpleHash(ci.toDataURL())
-        mainWindow.webContents.send('clipboard-new-content', { type: 'text', content: text })
+        mainWindow.webContents.send('clipboard-new-content', { type: 'text', content: text, sourceApp: activeApp })
       }
     } catch { /* transient clipboard error */ }
   }, 500)
@@ -563,6 +620,7 @@ ipcMain.on('clipboard-write', (_e, { content, type }) => {
   } catch (err) { console.error('[Numori Clips] Failed to write to clipboard:', err) }
 })
 ipcMain.on('set-incognito', (_e, enabled) => { incognitoMode = !!enabled })
+ipcMain.on('set-ignored-apps', (_e, appNames) => { ignoredAppNames = Array.isArray(appNames) ? appNames : [] })
 ipcMain.on('update-shortcuts', (_e, { togglePanel, toggleIncognito }) => {
   registerGlobalShortcuts(togglePanel, toggleIncognito)
 })

@@ -135,6 +135,7 @@
           <SettingsGeneral v-if="displayedSection === 'general'" :preferences="preferences" :on-setting-change="onSettingChange" @relaunch-wizard="handleRelaunchWizard" />
           <SettingsAppearance v-else-if="displayedSection === 'appearance'" />
           <SettingsShortcuts v-else-if="displayedSection === 'shortcuts'" :preferences="preferences" :on-setting-change="onSettingChange" />
+          <SettingsPrivacy v-else-if="displayedSection === 'privacy'" />
           <SettingsProfile v-else-if="displayedSection === 'profile'" ref="profileRef" :user="user" :auth-headers="authHeaders" @update-profile="emit('update-profile', $event)" @change-password="emit('change-password', $event)" @logout="emit('logout')" @navigate-section="selectSection" />
           <SettingsSecurity v-else-if="displayedSection === 'security'" :user="user" :auth-headers="authHeaders" />
           <SettingsSessions v-else-if="displayedSection === 'sessions'" :auth-headers="authHeaders" />
@@ -196,6 +197,7 @@ const appSections = [
   { id: 'general', label: 'General', icon: 'mdi:tune-variant', description: 'App settings', keywords: 'general welcome wizard relaunch setup update check interval version' },
   { id: 'appearance', label: 'Appearance', icon: 'mdi:palette-outline', description: 'Theme & display', keywords: 'appearance theme dark light mode color' },
   { id: 'shortcuts', label: 'Shortcuts', icon: 'mdi:keyboard-outline', description: 'Hotkeys & behaviour', keywords: 'shortcut keyboard hotkey toggle panel incognito paste sound history' },
+  { id: 'privacy', label: 'Privacy', icon: 'mdi:shield-eye-outline', description: 'Ignored apps', keywords: 'privacy ignore app filter password manager bitwarden clipboard exclude block' },
 ]
 
 const accountSections = [
