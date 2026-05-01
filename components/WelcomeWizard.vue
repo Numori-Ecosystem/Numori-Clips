@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-mutating-props -->
 <template>
-  <UiModal :show="isOpen" max-width="lg" z="z-[60]" persistent>
+  <UiWindow :show="isOpen" max-width="lg" z="z-[60]" persistent>
     <!-- Progress dots -->
     <div class="pt-5 pb-2">
       <UiStepper v-model="step" :steps="totalSteps" />
@@ -141,7 +141,7 @@
         </UiButton>
       </div>
     </div>
-  </UiModal>
+  </UiWindow>
 </template>
 
 <script setup>

@@ -19,6 +19,7 @@ import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtens
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const STATIC_DIR = join(__dirname, '..', '.output', 'public')
+const DEV_BASE = process.env.VITE_DEV_SERVER_URL?.replace(/\/?$/, '/')
 
 // ── State ────────────────────────────────────────────────────────────────
 let mainWindow = null
@@ -208,7 +209,7 @@ async function createWindow() {
     if (input.key === 'Escape' && input.type === 'keyDown') dismissMainWindow()
   })
 
-  mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || 'app://.')
+  mainWindow.loadURL(DEV_BASE || 'app://.')
 
   await new Promise((resolve) => {
     mainWindow.webContents.on('did-finish-load', () => {
@@ -259,8 +260,8 @@ function openSettingsWindow(section) {
   })
   settingsWindow.setMenuBarVisibility(false)
   settingsWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
-  const qs = section ? `&section=${section}` : ''
-  settingsWindow.loadURL(process.env.VITE_DEV_SERVER_URL ? `${process.env.VITE_DEV_SERVER_URL}?window=settings${qs}` : `app://./?window=settings${qs}`)
+  const qs = section ? `?section=${section}` : ''
+  settingsWindow.loadURL(DEV_BASE ? `${DEV_BASE}settings${qs}` : `app://./settings${qs}`)
   settingsWindow.on('closed', () => { settingsWindow = null })
 }
 
@@ -276,7 +277,7 @@ function openAboutWindow() {
   })
   aboutWindow.setMenuBarVisibility(false)
   aboutWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
-  aboutWindow.loadURL(process.env.VITE_DEV_SERVER_URL ? `${process.env.VITE_DEV_SERVER_URL}?window=about` : 'app://./?window=about')
+  aboutWindow.loadURL(DEV_BASE ? `${DEV_BASE}about` : 'app://./about')
   aboutWindow.on('closed', () => { aboutWindow = null })
 }
 
@@ -292,7 +293,7 @@ function openAuthWindow() {
   })
   authWindow.setMenuBarVisibility(false)
   authWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
-  authWindow.loadURL(process.env.VITE_DEV_SERVER_URL ? `${process.env.VITE_DEV_SERVER_URL}?window=auth` : 'app://./?window=auth')
+  authWindow.loadURL(DEV_BASE ? `${DEV_BASE}auth` : 'app://./auth')
   authWindow.on('closed', () => { authWindow = null })
 }
 
@@ -309,7 +310,7 @@ function openWizardWindow() {
   })
   wizardWindow.setMenuBarVisibility(false)
   wizardWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
-  wizardWindow.loadURL(process.env.VITE_DEV_SERVER_URL ? `${process.env.VITE_DEV_SERVER_URL}?window=wizard` : 'app://./?window=wizard')
+  wizardWindow.loadURL(DEV_BASE ? `${DEV_BASE}wizard` : 'app://./wizard')
   wizardWindow.on('closed', () => { wizardWindow = null; showMainWindow() })
 }
 

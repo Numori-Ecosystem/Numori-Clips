@@ -1,6 +1,6 @@
 <!--
   Standalone Auth page — rendered directly as window content (no modal).
-  The form content is extracted from AuthModal without the UiModal wrapper.
+  The form content is extracted from AuthModal without the UiWindow wrapper.
 -->
 <template>
   <div class="h-screen flex flex-col bg-white dark:bg-gray-925">

@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-mutating-props -->
 <template>
-  <UiModal
+  <UiWindow
     :show="isOpen"
     max-width="5xl"
     padding="md:p-4"
@@ -110,7 +110,7 @@
         </div>
       </div>
     </div>
-  </UiModal>
+  </UiWindow>
 </template>
 
 <script setup>

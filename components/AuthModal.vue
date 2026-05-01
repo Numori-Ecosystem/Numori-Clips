@@ -1,5 +1,5 @@
 <template>
-  <UiModal :show="isOpen" max-width="sm" :fullscreen-mobile="false" @close="$emit('close')">
+  <UiWindow :show="isOpen" max-width="sm" :fullscreen-mobile="false" @close="$emit('close')">
     <div class="p-5">
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
@@ -215,7 +215,7 @@
         </form>
       </template>
     </div>
-  </UiModal>
+  </UiWindow>
 </template>
 
 <script setup>

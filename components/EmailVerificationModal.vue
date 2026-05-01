@@ -1,5 +1,5 @@
 <template>
-  <UiModal :show="isOpen" max-width="sm" @close="$emit('close')">
+  <UiWindow :show="isOpen" max-width="sm" @close="$emit('close')">
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-400 leading-none">
@@ -53,7 +53,7 @@
         </UiButton>
       </p>
     </div>
-  </UiModal>
+  </UiWindow>
 </template>
 
 <script setup>
