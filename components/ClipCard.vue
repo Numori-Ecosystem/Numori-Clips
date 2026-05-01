@@ -1,7 +1,7 @@
 <template>
   <div
     ref="cardRef"
-    class="group relative rounded-xl border transition-all duration-150 cursor-pointer select-none overflow-hidden flex-shrink-0 w-64"
+    class="group relative rounded-xl border transition-all duration-150 cursor-pointer select-none overflow-hidden flex-shrink-0 w-64 flex flex-col"
     :class="[
       isSelected
         ? 'border-primary-400 dark:border-primary-500 ring-2 ring-primary-400/20 dark:ring-primary-500/20 shadow-card-hover'
@@ -17,7 +17,7 @@
     @keydown.delete.prevent="$emit('delete', clip.id)"
   >
     <!-- Card body -->
-    <div class="p-2.5">
+    <div class="p-2.5 flex flex-col flex-1 min-h-0">
       <!-- Header row: type badge + time + actions -->
       <div class="flex items-center gap-2 mb-1.5">
         <span
@@ -69,12 +69,12 @@
 
       <!-- Content preview -->
       <!-- Image -->
-      <div v-if="clip.type === 'image'" class="rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 max-h-28">
-        <img :src="clip.content" alt="Clipboard image" class="w-full h-full object-contain max-h-28" loading="lazy" />
+      <div v-if="clip.type === 'image'" class="flex-1 min-h-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <img :src="clip.content" alt="Clipboard image" class="w-full h-full object-contain" loading="lazy" />
       </div>
 
       <!-- Color -->
-      <div v-else-if="clip.type === 'color'" class="flex items-center gap-3">
+      <div v-else-if="clip.type === 'color'" class="flex-1 min-h-0 flex items-center gap-3">
         <div
           class="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-600 shadow-inner flex-shrink-0"
           :style="{ backgroundColor: clip.meta?.hex || clip.content }"
@@ -85,29 +85,29 @@
       </div>
 
       <!-- Emoji -->
-      <div v-else-if="clip.type === 'emoji'" class="py-1">
+      <div v-else-if="clip.type === 'emoji'" class="flex-1 min-h-0 flex items-center py-1">
         <span class="text-3xl leading-none">{{ clip.content.trim() }}</span>
       </div>
 
       <!-- Link -->
-      <div v-else-if="clip.type === 'link'" class="space-y-1">
+      <div v-else-if="clip.type === 'link'" class="flex-1 min-h-0 space-y-1">
         <p class="text-xs font-medium text-primary-500 dark:text-primary-400 truncate">
           {{ clip.meta?.domain || 'Link' }}
         </p>
-        <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 break-all leading-relaxed">
+        <p class="text-xs text-gray-500 dark:text-gray-400 break-all leading-relaxed overflow-hidden">
           {{ clip.content.trim() }}
         </p>
       </div>
 
       <!-- Code -->
-      <div v-else-if="clip.type === 'code'">
+      <div v-else-if="clip.type === 'code'" class="flex-1 min-h-0 flex flex-col">
         <pre
-          class="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 font-mono overflow-hidden whitespace-pre-wrap line-clamp-3 bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5"
+          class="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 font-mono overflow-hidden whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5 flex-1"
         >{{ clip.preview }}</pre>
       </div>
 
       <!-- File -->
-      <div v-else-if="clip.type === 'file'" class="flex items-center gap-2">
+      <div v-else-if="clip.type === 'file'" class="flex-1 min-h-0 flex items-center gap-2">
         <Icon name="mdi:file-outline" class="w-5 h-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
         <div class="min-w-0">
           <p class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ clip.title }}</p>
@@ -116,8 +116,8 @@
       </div>
 
       <!-- Text (default) -->
-      <div v-else>
-        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3 whitespace-pre-wrap break-words">{{ clip.preview }}</p>
+      <div v-else class="flex-1 min-h-0">
+        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words overflow-hidden h-full">{{ clip.preview }}</p>
       </div>
     </div>
   </div>
