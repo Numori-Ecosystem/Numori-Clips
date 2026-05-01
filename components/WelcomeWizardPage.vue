@@ -28,6 +28,9 @@
           <Icon name="mdi:minus" class="w-2.5 h-2.5 text-yellow-900 opacity-0 group-hover/traffic:opacity-100 transition-opacity" />
         </button>
       </div>
+      <UiButton v-if="!isElectron" variant="ghost" color="gray" icon-only size="sm" @click="skip">
+        <Icon name="mdi:close" class="block w-5 h-5" />
+      </UiButton>
       <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-200 leading-none ml-2">
         Welcome
       </h2>
@@ -160,7 +163,11 @@ const skip = () => finish()
 
 const finish = () => {
   step.value = 1
-  globalThis.window?.electronAPI?.wizardComplete()
+  if (isElectron) {
+    globalThis.window?.electronAPI?.wizardComplete()
+  } else {
+    navigateTo('/clips', { replace: true })
+  }
 }
 
 // Check extension status on mount

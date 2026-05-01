@@ -41,6 +41,18 @@
         </div>
 
         <UiButton
+          v-if="!isElectron"
+          variant="ghost"
+          color="gray"
+          icon-only
+          class="hidden md:flex"
+          title="Back"
+          @click="handleClose"
+        >
+          <Icon name="mdi:arrow-left" class="block w-5 h-5" />
+        </UiButton>
+
+        <UiButton
           variant="ghost"
           color="gray"
           icon-only
@@ -150,14 +162,19 @@ const { isElectron } = usePlatform()
 
 const handleClose = () => {
   if (isElectron) globalThis.window?.electronAPI?.close()
+  else navigateTo('/clips')
 }
 
 const handleMinimize = () => globalThis.window?.electronAPI?.minimize()
 const handleMaximize = () => globalThis.window?.electronAPI?.maximize()
 
 const handleRelaunchWizard = () => {
-  globalThis.window?.electronAPI?.openWizardWindow()
-  globalThis.window?.electronAPI?.close()
+  if (isElectron) {
+    globalThis.window?.electronAPI?.openWizardWindow()
+    globalThis.window?.electronAPI?.close()
+  } else {
+    navigateTo('/wizard')
+  }
 }
 
 // ── Child refs ──
@@ -213,9 +230,13 @@ watch(filteredSections, (filtered) => {
 })
 
 const selectSection = (id) => {
-  // Sign-in is a special action — close settings and open auth
+  // Sign-in is a special action — navigate to auth page
   if (id === 'sign-in') {
-    globalThis.window?.electronAPI?.openAuthWindow()
+    if (isElectron) {
+      globalThis.window?.electronAPI?.openAuthWindow()
+    } else {
+      navigateTo('/auth')
+    }
     return
   }
 

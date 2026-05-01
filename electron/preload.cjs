@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Auth window ────────────────────────────────────────────────────
   openAuthWindow: () => ipcRenderer.send('open-auth-window'),
 
+  // ── Verify Email window ────────────────────────────────────────────
+  openVerifyEmailWindow: () => ipcRenderer.send('open-verify-email-window'),
+
   // ── Wizard window ──────────────────────────────────────────────────
   openWizardWindow: () => ipcRenderer.send('open-wizard-window'),
   wizardComplete: () => ipcRenderer.send('wizard-complete'),

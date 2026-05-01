@@ -15,7 +15,7 @@ import {
 import { join, normalize } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawn } from 'node:child_process'
-import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtension, getExtensionStatus, installGnomeExtension, enableGnomeExtension, setShortcutViaExtension, toGtkAccelerator, needsNativeShortcuts } from './display-detect.js'
+import { getActiveDisplay, IS_WAYLAND, IS_GNOME, IS_KDE, positionWindowViaExtension, showWindowViaExtension, hideWindowViaExtension, getExtensionStatus, installGnomeExtension, enableGnomeExtension, setShortcutViaExtension, toGtkAccelerator, needsNativeShortcuts } from './display-detect.js'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const STATIC_DIR = join(__dirname, '..', '.output', 'public')
@@ -134,7 +134,6 @@ let cachedTargetBounds = null
 let cachedTargetBoundsTime = 0
 
 function getTargetBounds() {
-  // Cache for 5 seconds to avoid repeated slow D-Bus calls
   const now = Date.now()
   if (cachedTargetBounds && now - cachedTargetBoundsTime < 5000) return cachedTargetBounds
 
@@ -155,9 +154,7 @@ function applyWindowBounds(bounds) {
   mainWindow.setBounds(bounds)
   if (IS_GNOME && IS_WAYLAND) {
     const title = mainWindow.getTitle() || 'Numori Clips'
-    positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height, title)
-    || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
-    || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
+    tryExtensionPosition(bounds, title)
   }
 }
 
@@ -166,9 +163,45 @@ function applyWindowBounds(bounds) {
 let mainWindowVisible = false
 let mainWindowBounds = null
 
+/** WM class candidates to try when talking to the GNOME extension. */
+const WM_CLASS_CANDIDATES = ['numori-clips', 'electron', 'Electron']
+
+function tryExtensionShow(bounds, title) {
+  for (const wm of WM_CLASS_CANDIDATES) {
+    if (showWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, title)) return true
+    if (showWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, '')) return true
+  }
+  return false
+}
+
+function tryExtensionHide(title) {
+  for (const wm of WM_CLASS_CANDIDATES) {
+    if (hideWindowViaExtension(wm, title)) return true
+    if (hideWindowViaExtension(wm, '')) return true
+  }
+  return false
+}
+
+function tryExtensionPosition(bounds, title) {
+  for (const wm of WM_CLASS_CANDIDATES) {
+    if (positionWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, title)) return true
+    if (positionWindowViaExtension(wm, bounds.x, bounds.y, bounds.width, bounds.height, '')) return true
+  }
+  return false
+}
+
 function dismissMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed() || !mainWindowVisible) return
   mainWindowVisible = false
+  const title = mainWindow.getTitle() || 'Numori Clips'
+  // On GNOME Wayland, use the extension to hide (with slide-down animation)
+  if (IS_GNOME && IS_WAYLAND) {
+    if (tryExtensionHide(title)) {
+      // Extension handled the hide — give the animation time then actually hide the Electron window
+      setTimeout(() => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide() }, 200)
+      return
+    }
+  }
   mainWindow.hide()
 }
 
@@ -217,7 +250,7 @@ async function createWindow() {
     if (input.key === 'Escape' && input.type === 'keyDown') dismissMainWindow()
   })
 
-  mainWindow.loadURL(DEV_BASE || 'app://.')
+  mainWindow.loadURL(DEV_BASE ? `${DEV_BASE}clips` : 'app://./clips')
 
   await new Promise((resolve) => {
     mainWindow.webContents.on('did-finish-load', () => {
@@ -243,17 +276,33 @@ async function showMainWindow() {
   cachedTargetBoundsTime = 0
   mainWindowBounds = getTargetBounds()
 
-  mainWindow.setBounds(mainWindowBounds)
-  mainWindow.show()
-  mainWindow.focus()
-  mainWindowVisible = true
+  const title = mainWindow.getTitle() || 'Numori Clips'
 
-  // Reposition after show — compositor needs a moment on Wayland
-  setTimeout(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      applyWindowBounds(mainWindowBounds)
+  if (IS_GNOME && IS_WAYLAND) {
+    // Pre-position the window off-screen before showing so GNOME doesn't flash it centered
+    mainWindow.setBounds({ ...mainWindowBounds, y: mainWindowBounds.y + mainWindowBounds.height + 100 })
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindowVisible = true
+
+    // Use the extension's ShowWindow to position + animate from within the compositor
+    if (!tryExtensionShow(mainWindowBounds, title)) {
+      // Extension failed — fall back to setBounds repositioning
+      mainWindow.setBounds(mainWindowBounds)
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.setBounds(mainWindowBounds)
+          tryExtensionPosition(mainWindowBounds, title)
+        }
+      }, 50)
     }
-  }, 50)
+  } else {
+    // macOS, Windows, X11: setBounds works reliably
+    mainWindow.setBounds(mainWindowBounds)
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindowVisible = true
+  }
 }
 
 // ── Settings window ──────────────────────────────────────────────────────
@@ -303,6 +352,24 @@ function openAuthWindow() {
   authWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
   authWindow.loadURL(DEV_BASE ? `${DEV_BASE}auth` : 'app://./auth')
   authWindow.on('closed', () => { authWindow = null })
+}
+
+// ── Verify Email window ──────────────────────────────────────────────────
+
+let verifyEmailWindow = null
+
+function openVerifyEmailWindow() {
+  if (verifyEmailWindow && !verifyEmailWindow.isDestroyed()) { verifyEmailWindow.focus(); return }
+  verifyEmailWindow = new BrowserWindow({
+    width: 450, height: 480, minWidth: 380, minHeight: 400, resizable: true,
+    title: 'Verify Email — Numori Clips', frame: false, titleBarStyle: 'hidden', backgroundColor: getWindowBgColor(),
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: -20, y: -20 } } : {}),
+    webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
+  })
+  verifyEmailWindow.setMenuBarVisibility(false)
+  verifyEmailWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  verifyEmailWindow.loadURL(DEV_BASE ? `${DEV_BASE}verify-email` : 'app://./verify-email')
+  verifyEmailWindow.on('closed', () => { verifyEmailWindow = null })
 }
 
 // ── Wizard window ────────────────────────────────────────────────────────
@@ -460,6 +527,7 @@ ipcMain.on('theme-changed', (_e, theme) => { currentTheme = theme })
 ipcMain.on('open-settings-window', (_e, section) => openSettingsWindow(section || undefined))
 ipcMain.on('open-about-window', () => openAboutWindow())
 ipcMain.on('open-auth-window', () => openAuthWindow())
+ipcMain.on('open-verify-email-window', () => openVerifyEmailWindow())
 ipcMain.on('open-wizard-window', () => openWizardWindow())
 ipcMain.on('wizard-complete', () => {
   if (wizardWindow && !wizardWindow.isDestroyed()) { wizardWindow.removeAllListeners('closed'); wizardWindow.close(); wizardWindow = null }

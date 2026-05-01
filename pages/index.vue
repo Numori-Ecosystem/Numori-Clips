@@ -59,11 +59,15 @@ onMounted(async () => {
     extensionBlocked.value = false
   }
 
-  // On Electron, check if wizard needs to show
+  // Check if wizard needs to show
   await welcomeWizard.showIfFirstTime()
-  if (isElectron && welcomeWizard.isOpen.value) {
+  if (welcomeWizard.isOpen.value) {
     welcomeWizard.isOpen.value = false
-    globalThis.window?.electronAPI?.openWizardWindow()
+    if (isElectron) {
+      globalThis.window?.electronAPI?.openWizardWindow()
+    } else {
+      router.replace('/wizard')
+    }
     return
   }
 

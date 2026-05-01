@@ -63,6 +63,9 @@ const DBUS_IFACE = `
       <arg type="s" direction="in" name="titleHint"/>
       <arg type="b" direction="out" name="success"/>
     </method>
+    <method name="DebugListWindows">
+      <arg type="s" direction="out" name="windowList"/>
+    </method>
     <signal name="ShortcutActivated">
       <arg type="s" name="name"/>
     </signal>
@@ -113,6 +116,15 @@ export default class NumoriClipsHelper extends Extension {
         else if (method === 'HideWindow') {
           const [wmClass, titleHint] = params.deepUnpack();
           invocation.return_value(new GLib.Variant('(b)', [this._hideWindow(wmClass, titleHint)]));
+        }
+        else if (method === 'DebugListWindows') {
+          const actors = global.get_window_actors();
+          const list = actors.map(a => {
+            const w = a.get_meta_window();
+            if (!w) return 'null';
+            return `${w.get_wm_class() || '(none)'}|${w.get_wm_class_instance() || '(none)'}|${w.get_title() || '(none)'}`;
+          }).join(';;');
+          invocation.return_value(new GLib.Variant('(s)', [list]));
         }
       },
       null,

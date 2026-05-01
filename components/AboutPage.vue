@@ -29,6 +29,9 @@
             <Icon name="mdi:minus" class="w-2.5 h-2.5 text-yellow-900 opacity-0 group-hover/traffic:opacity-100 transition-opacity" />
           </button>
         </div>
+        <UiButton v-if="!isElectron" variant="ghost" color="gray" icon-only size="sm" @click="handleClose">
+          <Icon name="mdi:arrow-left" class="block w-5 h-5" />
+        </UiButton>
         <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-200 leading-none">About</h2>
       </div>
     </div>
@@ -189,7 +192,10 @@ defineProps({
 const { isElectron } = usePlatform()
 const toast = useToast()
 
-const handleClose = () => globalThis.window?.electronAPI?.close()
+const handleClose = () => {
+  if (isElectron) globalThis.window?.electronAPI?.close()
+  else navigateTo('/clips')
+}
 const handleMinimize = () => globalThis.window?.electronAPI?.minimize()
 const appVersion = __APP_VERSION__
 const checking = ref(false)

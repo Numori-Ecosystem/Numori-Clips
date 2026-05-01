@@ -163,12 +163,12 @@ import { useClipboard } from '~/composables/useClipboard'
 const clipboard = useClipboard()
 const toast = useToast()
 
-const emit = defineEmits(['dismiss', 'open-settings'])
+const emit = defineEmits(['dismiss'])
 
 const searchInputRef = ref(null)
 const favBtnRef = ref(null)
-const settingsBtnRef = ref(null)
 const incognitoBtnRef = ref(null)
+const settingsBtnRef = ref(null)
 const filterRowRef = ref(null)
 const scrollContainerRef = ref(null)
 const clipCardRefs = ref([])
@@ -184,7 +184,7 @@ const zoneIndex = ref(0) // horizontal index within the active zone
 const lastZoneIndex = ref([0, 0, 0, 0]) // remembered index per zone
 
 function getActionButtons() {
-  return [favBtnRef.value, settingsBtnRef.value, incognitoBtnRef.value].filter(Boolean)
+  return [favBtnRef.value, incognitoBtnRef.value, settingsBtnRef.value].filter(Boolean)
 }
 
 function getFilterButtons() {
@@ -303,7 +303,7 @@ function openSettings() {
   if (globalThis.window?.electronAPI?.openSettingsWindow) {
     globalThis.window.electronAPI.openSettingsWindow()
   } else {
-    emit('open-settings')
+    navigateTo('/settings')
   }
 }
 

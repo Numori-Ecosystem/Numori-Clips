@@ -5,63 +5,14 @@
     <EmailVerificationBanner
       v-if="auth.isLoggedIn.value && auth.user.value?.emailVerified === false"
       :visible="true"
-      @click="authHandlers.showEmailVerificationModal.value = true"
+      @click="openVerifyEmail"
     />
 
     <div class="flex-1 flex overflow-hidden">
       <main class="flex-1 overflow-hidden flex flex-col isolate relative">
-        <ClipPanel ref="clipPanelRef" @dismiss="dismissMainWindow" @open-settings="openSettings()" />
+        <ClipPanel ref="clipPanelRef" @dismiss="dismissMainWindow" />
       </main>
     </div>
-
-    <!-- Settings modal (web/mobile only) -->
-    <SettingsModal
-      v-if="!isElectron"
-      :is-open="showSettings"
-      :initial-section="settingsInitialSection"
-      :preferences="localePrefs.preferences"
-      :save="localePrefs.save"
-      :user="auth.user.value"
-      :auth-headers="auth.authHeaders.value"
-      :on-delete-data="authHandlers.handleDeleteData"
-      :on-delete-account="authHandlers.handleDeleteAccount"
-      @close="showSettings = false; settingsInitialSection = null"
-      @relaunch-wizard="relaunchWizard"
-      @update-profile="authHandlers.handleUpdateProfile"
-      @change-password="(...args) => { authHandlers.handleChangePassword(...args); showSettings = false }"
-      @logout="() => { showSettings = false; authHandlers.handleLogout() }"
-    />
-
-    <!-- Welcome wizard modal (web/mobile only) -->
-    <WelcomeWizard
-      v-if="!isElectron"
-      :is-open="welcomeWizard.isOpen.value"
-      :preferences="localePrefs.preferences"
-      :apply-preset="localePrefs.applyPreset"
-      :save-preferences="localePrefs.save"
-      @complete="welcomeWizard.complete()"
-    />
-
-    <AuthModal
-      :is-open="authHandlers.showAuthModal.value"
-      :loading="auth.loading.value"
-      :error="auth.error.value"
-      @close="authHandlers.showAuthModal.value = false"
-      @login="authHandlers.handleLogin"
-      @register="authHandlers.handleRegister"
-      @forgot-password="authHandlers.handleForgotPassword"
-      @verify-recovery="authHandlers.handleVerifyRecovery"
-      @reset-password="authHandlers.handleResetPassword"
-    />
-
-    <EmailVerificationModal
-      :is-open="authHandlers.showEmailVerificationModal.value"
-      :loading="auth.loading.value"
-      :error="auth.error.value"
-      @close="authHandlers.showEmailVerificationModal.value = false"
-      @verify="authHandlers.handleVerifyEmail"
-      @resend="authHandlers.handleResendVerification"
-    />
 
     <UpdateNotification
       :visible="sw.updateAvailable.value"
@@ -98,23 +49,11 @@ const clipboard = useClipboard()
 
 const authHandlers = useAuthHandlers({ auth, appLock })
 
-// --- UI state ---
-const showSettings = ref(false)
-const settingsInitialSection = ref(null)
 const clipPanelRef = ref(null)
 
 // --- Service worker update check interval ---
 watch(() => localePrefs.preferences.updateCheckInterval, (val) => { sw.setPollInterval(val ?? 30) })
 localePrefs.ready.then(() => { sw.setPollInterval(localePrefs.preferences.updateCheckInterval ?? 30) })
-
-const openSettings = (section) => {
-  if (isElectron && window.electronAPI?.openSettingsWindow) {
-    window.electronAPI.openSettingsWindow(section || undefined)
-  } else {
-    settingsInitialSection.value = section || 'general'
-    showSettings.value = true
-  }
-}
 
 const dismissMainWindow = () => {
   if (isElectron) {
@@ -122,17 +61,26 @@ const dismissMainWindow = () => {
   }
 }
 
-const relaunchWizard = () => {
-  showSettings.value = false
-  if (isElectron && window.electronAPI?.openWizardWindow) {
-    window.electronAPI.openWizardWindow()
+const openVerifyEmail = () => {
+  if (isElectron && globalThis.window?.electronAPI?.openVerifyEmailWindow) {
+    globalThis.window.electronAPI.openVerifyEmailWindow()
   } else {
-    welcomeWizard.isOpen.value = true
+    navigateTo('/verify-email')
   }
 }
 
 // --- Lifecycle ---
 onMounted(async () => {
+  // On Electron, check if wizard needs to show first
+  if (isElectron) {
+    await welcomeWizard.showIfFirstTime()
+    if (welcomeWizard.isOpen.value) {
+      welcomeWizard.isOpen.value = false
+      globalThis.window?.electronAPI?.openWizardWindow()
+      return
+    }
+  }
+
   await appLock.loadSettings()
   appLock.initAppListeners()
   appLock.detectBiometrics()
