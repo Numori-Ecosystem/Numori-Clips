@@ -3,8 +3,8 @@
     <!-- ── Toolbar ────────────────────────────────────────────────────── -->
     <div class="flex-shrink-0 px-4 pt-3 pb-2 space-y-2.5">
       <!-- Search row -->
-      <div class="flex items-center gap-2">
-        <div class="relative flex-1">
+      <div class="flex items-center justify-center gap-2">
+        <div class="relative flex-1 max-w-md">
           <Icon
             name="mdi:magnify"
             class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none"
@@ -29,7 +29,7 @@
 
         <!-- Right-side action buttons -->
         <button
-          class="p-2 rounded-xl border transition-all"
+          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0"
           :class="
             clipboard.showFavoritesOnly.value
               ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-500'
@@ -42,7 +42,7 @@
         </button>
 
         <button
-          class="p-2 rounded-xl border transition-all"
+          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0"
           :class="
             clipboard.incognitoMode.value
               ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20 text-primary-500'
@@ -56,7 +56,7 @@
       </div>
 
       <!-- Type filter row -->
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+      <div class="flex items-center justify-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
         <button
           class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
           :class="
@@ -329,8 +329,20 @@ function scrollToCard(idx) {
   })
 }
 
+// ── Auto-focus search on typing ──────────────────────────────────────────
+function onGlobalKeydown(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Delete'].includes(e.key)) return
+  if (document.activeElement === searchInputRef.value) return
+  if (e.key.length === 1) {
+    searchInputRef.value?.focus()
+  }
+}
+
 // ── Tray actions ─────────────────────────────────────────────────────────
 onMounted(() => {
+  document.addEventListener('keydown', onGlobalKeydown)
+
   if (globalThis.window?.electronAPI?.onTrayAction) {
     globalThis.window.electronAPI.onTrayAction((data) => {
       if (data.action === 'incognito-toggled') {
@@ -341,6 +353,10 @@ onMounted(() => {
       }
     })
   }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onGlobalKeydown)
 })
 
 defineExpose({
