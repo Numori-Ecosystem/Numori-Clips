@@ -167,18 +167,20 @@ export default class NumoriClipsHelper extends Extension {
 
   _readClipboard(clipboard) {
     const mimeTypes = clipboard.get_mimetypes(St.ClipboardType.CLIPBOARD);
+    const hasText = mimeTypes.some(m =>
+      ['text/plain;charset=utf-8', 'text/plain', 'UTF8_STRING'].includes(m));
 
-    // Check for image first
-    if (mimeTypes.includes('image/png')) {
+    // Check for image first — but only if there's no text alongside it.
+    // File managers put both image/png (thumbnail) and text (path) in the
+    // clipboard when copying files. In that case we prefer the text path.
+    if (mimeTypes.includes('image/png') && !hasText) {
       clipboard.get_content(St.ClipboardType.CLIPBOARD, 'image/png', (_cb, bytes) => {
         const data = bytes instanceof GLib.Bytes ? bytes.get_data() : bytes;
         if (data && data.length > 0) {
-          // Simple hash to detect duplicates
           const hash = data.length.toString();
           if (hash !== this._lastImageHash) {
             this._lastImageHash = hash;
             this._lastText = null;
-            // Convert to base64 for D-Bus transport
             const b64 = GLib.base64_encode(data);
             this._emitClipboardChanged('image', `data:image/png;base64,${b64}`);
           }
@@ -188,8 +190,7 @@ export default class NumoriClipsHelper extends Extension {
     }
 
     // Check for text
-    const textMimes = ['text/plain;charset=utf-8', 'text/plain', 'UTF8_STRING'];
-    if (mimeTypes.some(m => textMimes.includes(m))) {
+    if (hasText) {
       clipboard.get_text(St.ClipboardType.CLIPBOARD, (_cb, text) => {
         if (text && text.trim() && text !== this._lastText) {
           this._lastText = text;

@@ -62,10 +62,13 @@ function isLink(text) {
 
 // ── File path detection ──────────────────────────────────────────────────
 // Unix absolute paths, Windows drive paths, or file:// URIs
-const FILE_PATH_RE = /^(?:\/[\w.-]+(?:\/[\w.-]+)*\/?|[A-Z]:\\[\w.-]+(?:\\[\w.-]+)*\\?|file:\/\/\/.+)$/i
+// Allows spaces, special characters, and unicode in path segments
+const FILE_PATH_RE = /^(?:\/[^\n]+|[A-Z]:\\[^\n]+|file:\/\/\/[^\n]+)$/i
 
 function isFilePath(text) {
   const t = text.trim()
+  // Must be a single line and look like an absolute path
+  if (t.includes('\n')) return false
   return FILE_PATH_RE.test(t)
 }
 

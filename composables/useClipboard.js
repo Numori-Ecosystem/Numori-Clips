@@ -90,7 +90,20 @@ function createInstance() {
     if (!content || (typeof content === 'string' && !content.trim())) return null
 
     const hash = hashContent(content)
-    if (hash === _lastHash) return null
+
+    // Rapid-duplicate guard: skip if the exact same content was just processed.
+    // But allow re-adding if it matches a clip already in the DB (so it gets
+    // bumped to the top with a fresh timestamp).
+    if (hash === _lastHash) {
+      const existing = await db.clips.where('hash').equals(hash).first()
+      if (existing) {
+        const now = Date.now()
+        await db.clips.update(existing.id, { createdAt: now, updatedAt: now })
+        await loadClips()
+        return existing
+      }
+      return null
+    }
     _lastHash = hash
 
     const existing = await db.clips.where('hash').equals(hash).first()

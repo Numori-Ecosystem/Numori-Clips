@@ -433,35 +433,23 @@ function startDbusShortcutListener() {
         }
 
         if (line.includes('ClipboardChanged') && mainWindow && !mainWindow.isDestroyed()) {
-          // gdbus monitor outputs GVariant tuples like:
-          //   ('text', 'simple content')
-          //   ('text', "content with 'quotes'")
-          //   ('text', 'content with escaped \'quotes\'')
-          // For multi-line or quote-heavy content the simple regex approach
-          // breaks, so we locate the content by finding the type field first,
-          // then grab everything between the next quote and the final quote+)
           const typeMatch = line.match(/ClipboardChanged\s*\(\s*'(\w+)'/)
           if (typeMatch) {
             const type = typeMatch[1]
-            // Find the position right after the type's closing quote + comma
             const afterTypeIdx = line.indexOf(typeMatch[0]) + typeMatch[0].length
             const rest = line.substring(afterTypeIdx)
 
             let content = null
 
-            // Determine the quote style used for the content value
             const quoteStart = rest.match(/,\s*(['"])/)
             if (quoteStart) {
-              const q = quoteStart[1] // ' or "
+              const q = quoteStart[1]
               const contentStart = rest.indexOf(quoteStart[0]) + quoteStart[0].length
-              // Find the closing: quote followed by ) at the end, scanning from the right
-              // to handle escaped quotes inside the content
               const tail = rest.substring(contentStart)
               const closingPattern = q === "'" ? /'\s*\)\s*$/ : /"\s*\)\s*$/
               const closingMatch = tail.match(closingPattern)
               if (closingMatch) {
                 const raw = tail.substring(0, closingMatch.index)
-                // Unescape: \\n → newline, escaped quotes → literal quotes, \\\\ → backslash
                 content = raw
                   .replace(/\\n/g, '\n')
                   .replace(q === "'" ? /\\'/g : /\\"/g, q)
