@@ -29,7 +29,8 @@
 
         <!-- Right-side action buttons -->
         <button
-          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0"
+          ref="favBtnRef"
+          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0 outline-none focus:ring-2 focus:ring-primary-400/50 dark:focus:ring-primary-500/50"
           :class="
             clipboard.showFavoritesOnly.value
               ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-500'
@@ -42,7 +43,8 @@
         </button>
 
         <button
-          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0"
+          ref="incognitoBtnRef"
+          class="w-9 h-9 flex items-center justify-center rounded-full border transition-all flex-shrink-0 outline-none focus:ring-2 focus:ring-primary-400/50 dark:focus:ring-primary-500/50"
           :class="
             clipboard.incognitoMode.value
               ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20 text-primary-500'
@@ -56,9 +58,9 @@
       </div>
 
       <!-- Type filter row -->
-      <div class="flex items-center justify-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+      <div ref="filterRowRef" class="flex items-center justify-center gap-1.5 overflow-x-auto pt-1 pb-0.5 scrollbar-none">
         <button
-          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap outline-none focus:ring-2 focus:ring-primary-400/50 dark:focus:ring-primary-500/50"
           :class="
             !clipboard.activeTypeFilter.value
               ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900'
@@ -72,7 +74,7 @@
         <button
           v-for="filter in typeFilters"
           :key="filter.type"
-          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap outline-none focus:ring-2 focus:ring-primary-400/50 dark:focus:ring-primary-500/50"
           :class="
             clipboard.activeTypeFilter.value === filter.type
               ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900'
@@ -92,11 +94,10 @@
     <!-- ── Clip list (horizontal scroll) ──────────────────────────────── -->
     <div
       ref="scrollContainerRef"
-      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4"
+      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 outline-none"
       role="listbox"
       aria-label="Clipboard history"
       tabindex="0"
-      @keydown="onKeydown"
     >
       <!-- Incognito banner -->
       <div
@@ -182,9 +183,59 @@ const toast = useToast()
 const emit = defineEmits(['dismiss'])
 
 const searchInputRef = ref(null)
+const favBtnRef = ref(null)
+const incognitoBtnRef = ref(null)
+const filterRowRef = ref(null)
 const scrollContainerRef = ref(null)
 const clipCardRefs = ref([])
 const selectedClipId = ref(null)
+
+// ── Focus zone navigation ────────────────────────────────────────────────
+// Zone 0 = search input
+// Zone 1 = action buttons (favorites, incognito)
+// Zone 2 = type filters
+// Zone 3 = clips
+const activeZone = ref(0)
+const zoneIndex = ref(0) // horizontal index within the active zone
+const lastZoneIndex = ref([0, 0, 0, 0]) // remembered index per zone
+
+function getActionButtons() {
+  return [favBtnRef.value, incognitoBtnRef.value].filter(Boolean)
+}
+
+function getFilterButtons() {
+  return filterRowRef.value ? Array.from(filterRowRef.value.querySelectorAll('button')) : []
+}
+
+function focusCurrentZoneItem() {
+  const remembered = lastZoneIndex.value[activeZone.value]
+
+  if (activeZone.value === 0) {
+    zoneIndex.value = 0
+    searchInputRef.value?.focus()
+  } else if (activeZone.value === 1) {
+    const items = getActionButtons()
+    const idx = Math.min(remembered, items.length - 1)
+    zoneIndex.value = idx
+    items[idx]?.focus()
+  } else if (activeZone.value === 2) {
+    const buttons = getFilterButtons()
+    const idx = Math.min(remembered, buttons.length - 1)
+    zoneIndex.value = idx
+    buttons[idx]?.focus()
+  } else if (activeZone.value === 3) {
+    const clips = clipboard.filteredClips.value
+    if (clips.length) {
+      const idx = Math.min(remembered, clips.length - 1)
+      zoneIndex.value = idx
+      selectedClipId.value = clips[idx].id
+      scrollToCard(idx)
+    }
+    document.activeElement?.blur()
+  }
+
+  lastZoneIndex.value[activeZone.value] = zoneIndex.value
+}
 
 // ── Type filters ─────────────────────────────────────────────────────────
 const typeFilters = [
@@ -275,51 +326,7 @@ function toggleIncognito() {
   )
 }
 
-// ── Keyboard navigation (horizontal) ────────────────────────────────────
-function onKeydown(e) {
-  const clips = clipboard.filteredClips.value
-  if (!clips.length) return
-
-  const currentIdx = clips.findIndex((c) => c.id === selectedClipId.value)
-
-  switch (e.key) {
-    case 'ArrowRight': {
-      e.preventDefault()
-      const nextIdx = currentIdx < clips.length - 1 ? currentIdx + 1 : 0
-      selectedClipId.value = clips[nextIdx].id
-      scrollToCard(nextIdx)
-      break
-    }
-    case 'ArrowLeft': {
-      e.preventDefault()
-      const prevIdx = currentIdx > 0 ? currentIdx - 1 : clips.length - 1
-      selectedClipId.value = clips[prevIdx].id
-      scrollToCard(prevIdx)
-      break
-    }
-    case 'Enter': {
-      e.preventDefault()
-      if (currentIdx >= 0) handleCopy(clips[currentIdx])
-      break
-    }
-    case 'Delete': {
-      e.preventDefault()
-      if (currentIdx >= 0) handleDelete(clips[currentIdx].id)
-      break
-    }
-    case 'Escape': {
-      e.preventDefault()
-      emit('dismiss')
-      break
-    }
-    case '/': {
-      e.preventDefault()
-      searchInputRef.value?.focus()
-      break
-    }
-  }
-}
-
+// ── Keyboard navigation ──────────────────────────────────────────────────
 function scrollToCard(idx) {
   nextTick(() => {
     const cards = clipCardRefs.value
@@ -329,12 +336,120 @@ function scrollToCard(idx) {
   })
 }
 
-// ── Auto-focus search on typing ──────────────────────────────────────────
+// ── Global keyboard handler ──────────────────────────────────────────────
 function onGlobalKeydown(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return
-  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Delete'].includes(e.key)) return
-  if (document.activeElement === searchInputRef.value) return
-  if (e.key.length === 1) {
+
+  const inSearch = document.activeElement === searchInputRef.value
+
+  // Escape: clear search or dismiss
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    if (inSearch && clipboard.searchQuery.value) {
+      clearSearch()
+    } else {
+      emit('dismiss')
+    }
+    return
+  }
+
+  // "/" always focuses search
+  if (e.key === '/') {
+    if (!inSearch) {
+      e.preventDefault()
+      activeZone.value = 0
+      zoneIndex.value = 0
+      searchInputRef.value?.focus()
+    }
+    return
+  }
+
+  // Up / Down — move between zones
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (activeZone.value < 3) {
+      lastZoneIndex.value[activeZone.value] = zoneIndex.value
+      activeZone.value++
+      focusCurrentZoneItem()
+    }
+    return
+  }
+
+  if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    if (activeZone.value > 0) {
+      lastZoneIndex.value[activeZone.value] = zoneIndex.value
+      activeZone.value--
+      focusCurrentZoneItem()
+    }
+    return
+  }
+
+  // Left / Right — move within zone
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    // In search input, let cursor keys work normally
+    if (inSearch && activeZone.value === 0) return
+
+    e.preventDefault()
+    const delta = e.key === 'ArrowRight' ? 1 : -1
+
+    if (activeZone.value === 1) {
+      const items = getActionButtons()
+      zoneIndex.value = Math.max(0, Math.min(items.length - 1, zoneIndex.value + delta))
+      lastZoneIndex.value[1] = zoneIndex.value
+      items[zoneIndex.value]?.focus()
+    } else if (activeZone.value === 2) {
+      const buttons = getFilterButtons()
+      zoneIndex.value = Math.max(0, Math.min(buttons.length - 1, zoneIndex.value + delta))
+      lastZoneIndex.value[2] = zoneIndex.value
+      buttons[zoneIndex.value]?.focus()
+    } else if (activeZone.value === 3) {
+      const clips = clipboard.filteredClips.value
+      if (!clips.length) return
+      const newIdx = zoneIndex.value + delta
+      if (newIdx >= 0 && newIdx < clips.length) {
+        zoneIndex.value = newIdx
+        lastZoneIndex.value[3] = newIdx
+        selectedClipId.value = clips[newIdx].id
+        scrollToCard(newIdx)
+      }
+    }
+    return
+  }
+
+  // Enter / Space — activate current item
+  if (e.key === 'Enter' || e.key === ' ') {
+    if (inSearch) return // let search handle Enter/Space normally
+
+    e.preventDefault()
+
+    if (activeZone.value === 1) {
+      const items = getActionButtons()
+      items[zoneIndex.value]?.click()
+    } else if (activeZone.value === 2) {
+      const buttons = getFilterButtons()
+      buttons[zoneIndex.value]?.click()
+    } else if (activeZone.value === 3) {
+      const clips = clipboard.filteredClips.value
+      const currentIdx = clips.findIndex((c) => c.id === selectedClipId.value)
+      if (currentIdx >= 0) handleCopy(clips[currentIdx])
+    }
+    return
+  }
+
+  // Delete — remove selected clip
+  if (e.key === 'Delete' && activeZone.value === 3) {
+    e.preventDefault()
+    const clips = clipboard.filteredClips.value
+    const currentIdx = clips.findIndex((c) => c.id === selectedClipId.value)
+    if (currentIdx >= 0) handleDelete(clips[currentIdx].id)
+    return
+  }
+
+  // Printable characters auto-focus search
+  if (!inSearch && e.key.length === 1) {
+    activeZone.value = 0
+    zoneIndex.value = 0
     searchInputRef.value?.focus()
   }
 }
