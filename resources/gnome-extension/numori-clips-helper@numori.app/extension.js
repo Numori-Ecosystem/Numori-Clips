@@ -41,6 +41,7 @@ const DBUS_IFACE = `
       <arg type="i" direction="in" name="y"/>
       <arg type="i" direction="in" name="width"/>
       <arg type="i" direction="in" name="height"/>
+      <arg type="s" direction="in" name="titleHint"/>
       <arg type="b" direction="out" name="success"/>
     </method>
     <method name="SetShortcut">
@@ -54,10 +55,12 @@ const DBUS_IFACE = `
       <arg type="i" direction="in" name="y"/>
       <arg type="i" direction="in" name="width"/>
       <arg type="i" direction="in" name="height"/>
+      <arg type="s" direction="in" name="titleHint"/>
       <arg type="b" direction="out" name="success"/>
     </method>
     <method name="HideWindow">
       <arg type="s" direction="in" name="wmClass"/>
+      <arg type="s" direction="in" name="titleHint"/>
       <arg type="b" direction="out" name="success"/>
     </method>
     <signal name="ShortcutActivated">
@@ -96,20 +99,20 @@ export default class NumoriClipsHelper extends Extension {
           invocation.return_value(new GLib.Variant('(iiiii)', [monitorIndex, workArea.x, workArea.y, workArea.width, workArea.height]));
         }
         else if (method === 'PositionWindow') {
-          const [wmClass, x, y, width, height] = params.deepUnpack();
-          invocation.return_value(new GLib.Variant('(b)', [this._positionWindow(wmClass, x, y, width, height)]));
+          const [wmClass, x, y, width, height, titleHint] = params.deepUnpack();
+          invocation.return_value(new GLib.Variant('(b)', [this._positionWindow(wmClass, x, y, width, height, titleHint)]));
         }
         else if (method === 'SetShortcut') {
           const [name, accelerator] = params.deepUnpack();
           invocation.return_value(new GLib.Variant('(b)', [this._setShortcut(name, accelerator)]));
         }
         else if (method === 'ShowWindow') {
-          const [wmClass, x, y, width, height] = params.deepUnpack();
-          invocation.return_value(new GLib.Variant('(b)', [this._showWindow(wmClass, x, y, width, height)]));
+          const [wmClass, x, y, width, height, titleHint] = params.deepUnpack();
+          invocation.return_value(new GLib.Variant('(b)', [this._showWindow(wmClass, x, y, width, height, titleHint)]));
         }
         else if (method === 'HideWindow') {
-          const [wmClass] = params.deepUnpack();
-          invocation.return_value(new GLib.Variant('(b)', [this._hideWindow(wmClass)]));
+          const [wmClass, titleHint] = params.deepUnpack();
+          invocation.return_value(new GLib.Variant('(b)', [this._hideWindow(wmClass, titleHint)]));
         }
       },
       null,
@@ -247,20 +250,34 @@ export default class NumoriClipsHelper extends Extension {
 
   // ── Window positioning ─────────────────────────────────────────────────
 
-  _findWindow(wmClass) {
+  _findWindow(wmClass, titleHint) {
     const actors = global.get_window_actors();
+    let fallback = null;
+    let partialMatch = null;
     for (const actor of actors) {
       const win = actor.get_meta_window();
       if (!win) continue;
       const wc = win.get_wm_class();
       const wcInstance = win.get_wm_class_instance();
-      if (wc === wmClass || wcInstance === wmClass) return { win, actor };
+      if (wc === wmClass || wcInstance === wmClass) {
+        if (titleHint) {
+          const title = win.get_title() || '';
+          // Exact title match is strongest
+          if (title === titleHint) return { win, actor };
+          // Partial (contains) match as second priority
+          if (!partialMatch && title.includes(titleHint)) partialMatch = { win, actor };
+          // First WM class match as last-resort fallback
+          if (!fallback) fallback = { win, actor };
+        } else {
+          return { win, actor };
+        }
+      }
     }
-    return null;
+    return partialMatch || fallback;
   }
 
-  _positionWindow(wmClass, x, y, width, height) {
-    const found = this._findWindow(wmClass);
+  _positionWindow(wmClass, x, y, width, height, titleHint) {
+    const found = this._findWindow(wmClass, titleHint);
     if (!found) return false;
     const { win } = found;
     win.move_resize_frame(false, x, y, width, height);
@@ -270,8 +287,8 @@ export default class NumoriClipsHelper extends Extension {
     return true;
   }
 
-  _showWindow(wmClass, x, y, width, height) {
-    const found = this._findWindow(wmClass);
+  _showWindow(wmClass, x, y, width, height, titleHint) {
+    const found = this._findWindow(wmClass, titleHint);
     if (!found) return false;
     const { win, actor } = found;
 
@@ -308,8 +325,8 @@ export default class NumoriClipsHelper extends Extension {
     return true;
   }
 
-  _hideWindow(wmClass) {
-    const found = this._findWindow(wmClass);
+  _hideWindow(wmClass, titleHint) {
+    const found = this._findWindow(wmClass, titleHint);
     if (!found) return false;
     const { win } = found;
 

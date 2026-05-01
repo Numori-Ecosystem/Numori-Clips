@@ -154,9 +154,10 @@ function applyWindowBounds(bounds) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.setBounds(bounds)
   if (IS_GNOME && IS_WAYLAND) {
-    positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height)
-    || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height)
-    || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height)
+    const title = mainWindow.getTitle() || 'Numori Clips'
+    positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height, title)
+    || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
+    || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
   }
 }
 
@@ -202,7 +203,14 @@ async function createWindow() {
   mainWindowVisible = false
 
   mainWindow.on('close', (e) => { if (!app.isQuitting) { e.preventDefault(); dismissMainWindow() } })
-  mainWindow.on('blur', () => { if (!app.isQuitting && mainWindow && !mainWindow.isDestroyed() && mainWindowVisible) dismissMainWindow() })
+  mainWindow.on('blur', () => {
+    if (!app.isQuitting && mainWindow && !mainWindow.isDestroyed() && mainWindowVisible) {
+      // Don't dismiss if focus moved to another Numori window (settings, about, auth, wizard)
+      const focused = BrowserWindow.getFocusedWindow()
+      if (focused && (focused === settingsWindow || focused === aboutWindow || focused === authWindow || focused === wizardWindow)) return
+      dismissMainWindow()
+    }
+  })
   mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
   mainWindow.webContents.on('before-input-event', (e, input) => {
     if ((input.key === 'r' && (input.control || input.meta)) || input.key === 'F5') e.preventDefault()
@@ -489,17 +497,18 @@ ipcMain.on('reposition-main-window', async () => {
     mainWindow.setBounds(bounds)
     // Also use the extension to force position on Wayland
     if (IS_WAYLAND) {
+      const title = mainWindow.getTitle() || 'Numori Clips'
       setTimeout(() => {
-        const positioned = positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height)
-          || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height)
-          || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height)
+        const positioned = positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height, title)
+          || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
+          || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
         console.log('[Numori Clips] reposition via extension:', positioned)
         if (!positioned) {
           // Retry after a bit more time
           setTimeout(() => {
-            const retry = positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height)
-              || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height)
-              || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height)
+            const retry = positionWindowViaExtension('numori-clips', bounds.x, bounds.y, bounds.width, bounds.height, title)
+              || positionWindowViaExtension('electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
+              || positionWindowViaExtension('Electron', bounds.x, bounds.y, bounds.width, bounds.height, title)
             console.log('[Numori Clips] reposition retry:', retry)
           }, 500)
         }

@@ -110,9 +110,9 @@ export function getExtensionStatus() {
 
 // ── Window positioning ───────────────────────────────────────────────────
 
-export function positionWindowViaExtension(wmClass, x, y, width, height) {
+export function positionWindowViaExtension(wmClass, x, y, width, height, titleHint) {
   if (!IS_GNOME || !IS_WAYLAND) return false
-  try { return gdbus('PositionWindow', wmClass, x, y, width, height).includes('true') } catch { return false }
+  try { return gdbus('PositionWindow', wmClass, x, y, width, height, titleHint || '').includes('true') } catch { return false }
 }
 
 // ── Shortcuts (GNOME Wayland) ────────────────────────────────────────────
@@ -133,14 +133,14 @@ export function setShortcutViaExtension(name, gtkAccelerator) {
   try { return gdbus('SetShortcut', name, gtkAccelerator || '').includes('true') } catch { return false }
 }
 
-export function showWindowViaExtension(wmClass, x, y, width, height) {
+export function showWindowViaExtension(wmClass, x, y, width, height, titleHint) {
   if (!IS_GNOME || !IS_WAYLAND) return false
-  try { return gdbus('ShowWindow', wmClass, x, y, width, height).includes('true') } catch { return false }
+  try { return gdbus('ShowWindow', wmClass, x, y, width, height, titleHint || '').includes('true') } catch { return false }
 }
 
-export function hideWindowViaExtension(wmClass) {
+export function hideWindowViaExtension(wmClass, titleHint) {
   if (!IS_GNOME || !IS_WAYLAND) return false
-  try { return gdbus('HideWindow', wmClass).includes('true') } catch { return false }
+  try { return gdbus('HideWindow', wmClass, titleHint || '').includes('true') } catch { return false }
 }
 
 export function needsNativeShortcuts() {
