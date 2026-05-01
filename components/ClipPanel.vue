@@ -103,7 +103,7 @@
     <!-- ── Clip list (horizontal scroll) ──────────────────────────────── -->
     <div
       ref="scrollContainerRef"
-      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-3 outline-none"
+      class="flex-1 overflow-x-auto overflow-y-hidden px-4 pt-3 pb-3 outline-none bg-gray-100/70 dark:bg-gray-950/40"
       role="listbox"
       aria-label="Clipboard history"
       tabindex="0"
