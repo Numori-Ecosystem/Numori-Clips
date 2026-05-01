@@ -91,36 +91,7 @@ function stopClipboardPolling() {
   if (clipboardPollInterval) { clearInterval(clipboardPollInterval); clipboardPollInterval = null }
 }
 
-// ── Theme ────────────────────────────────────────────────────────────────
-
-function toggleTheme() {
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark'
-  for (const win of [mainWindow, settingsWindow]) {
-    if (win && !win.isDestroyed()) win.webContents.send('tray-action', { action: 'theme-changed', value: currentTheme })
-  }
-  rebuildTrayMenu()
-}
-
 // ── System tray ──────────────────────────────────────────────────────────
-
-function rebuildTrayMenu() {
-  if (!tray) return
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Show Numori Clips', click: () => showMainWindow() },
-    { type: 'separator' },
-    { label: 'Incognito Mode', type: 'checkbox', checked: incognitoMode, click: (m) => {
-      incognitoMode = m.checked
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('tray-action', { action: 'incognito-toggled', value: incognitoMode })
-    }},
-    { type: 'separator' },
-    { label: currentTheme === 'dark' ? 'Theme: Dark' : 'Theme: Light', click: () => toggleTheme() },
-    { type: 'separator' },
-    { label: 'Settings', click: () => openSettingsWindow() },
-    { label: 'About', click: () => openAboutWindow() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => { app.isQuitting = true; app.quit() } },
-  ]))
-}
 
 function createTray() {
   const iconPath = join(__dirname, '..', 'icons', '16x16.png')
@@ -131,7 +102,14 @@ function createTray() {
   } catch { trayIcon = nativeImage.createEmpty() }
   tray = new Tray(trayIcon)
   tray.setToolTip('Numori Clips')
-  rebuildTrayMenu()
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Show Numori Clips', click: () => showMainWindow() },
+    { type: 'separator' },
+    { label: 'Settings', click: () => openSettingsWindow() },
+    { label: 'About', click: () => openAboutWindow() },
+    { type: 'separator' },
+    { label: 'Quit', click: () => { app.isQuitting = true; app.quit() } },
+  ]))
   tray.on('click', () => showMainWindow())
 }
 
@@ -469,7 +447,7 @@ ipcMain.on('window-maximize', (e) => { const w = BrowserWindow.fromWebContents(e
 ipcMain.on('window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
 ipcMain.on('dismiss-main-window', () => dismissMainWindow())
 ipcMain.on('window-set-fullscreen', (e, flag) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!flag) })
-ipcMain.on('theme-changed', (_e, theme) => { currentTheme = theme; rebuildTrayMenu() })
+ipcMain.on('theme-changed', (_e, theme) => { currentTheme = theme })
 ipcMain.on('open-settings-window', (_e, section) => openSettingsWindow(section || undefined))
 ipcMain.on('open-about-window', () => openAboutWindow())
 ipcMain.on('open-auth-window', () => openAuthWindow())
