@@ -2,7 +2,7 @@
   <div class="p-5 md:p-8">
     <div class="max-w-2xl mx-auto">
       <SettingsSectionHeader
-        icon="mdi:shield-eye-outline"
+        icon="mdi:eye-lock-outline"
         title="Privacy"
         description="Control which apps are excluded from clipboard capture"
       />

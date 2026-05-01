@@ -197,7 +197,7 @@ const appSections = [
   { id: 'general', label: 'General', icon: 'mdi:tune-variant', description: 'App settings', keywords: 'general welcome wizard relaunch setup update check interval version' },
   { id: 'appearance', label: 'Appearance', icon: 'mdi:palette-outline', description: 'Theme & display', keywords: 'appearance theme dark light mode color' },
   { id: 'shortcuts', label: 'Shortcuts', icon: 'mdi:keyboard-outline', description: 'Hotkeys & behaviour', keywords: 'shortcut keyboard hotkey toggle panel incognito paste sound history' },
-  { id: 'privacy', label: 'Privacy', icon: 'mdi:shield-eye-outline', description: 'Ignored apps', keywords: 'privacy ignore app filter password manager bitwarden clipboard exclude block' },
+  { id: 'privacy', label: 'Privacy', icon: 'mdi:eye-lock-outline', description: 'Ignored apps', keywords: 'privacy ignore app filter password manager bitwarden clipboard exclude block' },
 ]
 
 const accountSections = [
