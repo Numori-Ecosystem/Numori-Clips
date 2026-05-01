@@ -1,6 +1,6 @@
 <!--
   Standalone About page — rendered directly as window content (no modal).
-  Used by the Electron about window. The AboutModal component is left untouched.
+  Used by the Electron about window.
 -->
 <template>
   <div class="h-screen flex flex-col bg-white dark:bg-gray-925">
