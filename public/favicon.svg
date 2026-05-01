@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 834 834" version="1.1" xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/"
+    style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;">
+    <g>
+        <path
+            d="M833.333,183.333l0,466.667c0,101.184 -82.149,183.333 -183.333,183.333l-466.667,0c-101.184,0 -183.333,-82.149 -183.333,-183.333l0,-466.667c0,-101.184 82.149,-183.333 183.333,-183.333l466.667,0c101.184,0 183.333,82.149 183.333,183.333Z"
+            style="fill:#2d2a2e;" />
+        <clipPath id="_clip1">
+            <path
+                d="M125,554.167c-2.3,0 -4.167,-1.867 -4.167,-4.167c-0,-2.3 1.867,-4.167 4.167,-4.167l583.333,0c2.3,0 4.167,1.867 4.167,4.167c-0,2.3 -1.867,4.167 -4.167,4.167l-583.333,0Z" />
+        </clipPath>
+        <g clip-path="url(#_clip1)">
+            <use xlink:href="#_Image2" x="120.833" y="545.833" width="592px" height="9px" />
+        </g>
+        <clipPath id="_clip3">
+            <path
+                d="M125,420.833c-2.3,0 -4.167,-1.867 -4.167,-4.167c-0,-2.3 1.867,-4.167 4.167,-4.167l583.333,0c2.3,0 4.167,1.867 4.167,4.167c-0,2.3 -1.867,4.167 -4.167,4.167l-583.333,0Z" />
+        </clipPath>
+        <g clip-path="url(#_clip3)">
+            <use xlink:href="#_Image2" x="120.833" y="412.5" width="592px" height="9px" />
+        </g>
+        <clipPath id="_clip4">
+            <path
+                d="M125,287.5c-2.3,-0 -4.167,-1.867 -4.167,-4.167c0,-2.3 1.867,-4.167 4.167,-4.167l583.333,0c2.3,-0 4.167,1.867 4.167,4.167c0,2.3 -1.867,4.167 -4.167,4.167l-583.333,0Z" />
+        </clipPath>
+        <g clip-path="url(#_clip4)">
+            <use xlink:href="#_Image2" x="120.833" y="279.167" width="592px" height="9px" />
+        </g>
+        <path d="M616.667,229.167c41.667,104.167 41.667,270.833 0,375"
+            style="fill:none;fill-rule:nonzero;stroke:#cc2d56;stroke-width:58.33px;" />
+        <path d="M216.667,229.167c116.667,83.333 283.333,291.667 400,375"
+            style="fill:none;fill-rule:nonzero;stroke:#cc2d56;stroke-width:58.33px;" />
+        <path d="M216.667,229.167c-41.667,104.167 -41.667,270.833 0,375"
+            style="fill:none;fill-rule:nonzero;stroke:#cc2d56;stroke-width:58.33px;" />
+        <circle cx="616.667" cy="604.167" r="54.167" style="fill:#3d7a1c;" />
+        <circle cx="616.667" cy="604.167" r="25" style="fill:#a9dc76;" />
+    </g>
+    <defs>
+        <image id="_Image2" width="592px" height="9px"
+            xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlAAAAAJCAYAAAD9/BJTAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAS0lEQVR4nO3WMQ0AIBAEQUAfYsj7L7DwVxGSGQVb7qxTewAA0LZeBwAA/MZAAQCEDBQAQMhAAQCEDBQAQMhAAQCEDBQAQMhAAQCELpu4AbJ2g9RMAAAAAElFTkSuQmCC" />
+    </defs>
+</svg>

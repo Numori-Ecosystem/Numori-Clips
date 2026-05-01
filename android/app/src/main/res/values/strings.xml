@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Numori Notes</string>
+    <string name="title_activity_main">Numori Notes</string>
+    <string name="package_name">notes.numori.app</string>
+    <string name="custom_url_scheme">notes.numori.app</string>
+</resources>

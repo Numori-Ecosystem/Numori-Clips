@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "35W253Q69K.notes.numori.app",
+        "paths": ["*"]
+      }
+    ]
+  }
+}

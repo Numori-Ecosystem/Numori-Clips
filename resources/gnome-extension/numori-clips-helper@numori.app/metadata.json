@@ -1,0 +1,8 @@
+{
+  "name": "Numori Clips Helper",
+  "description": "Exposes the current monitor index via D-Bus for Numori Clips",
+  "uuid": "numori-clips-helper@numori.app",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
+  "version": 1,
+  "url": "https://github.com/Numori-Ecosystem/Numori-Clips"
+}

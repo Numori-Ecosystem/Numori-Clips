@@ -1,0 +1,41 @@
+[tools]
+node = "22.20.0"
+java = "openjdk-21"
+
+# System packages required for `npm run build:electron` (not managed by mise):
+# - flatpak, flatpak-builder (flatpak target)
+# - org.freedesktop.Platform//25.08, org.freedesktop.Sdk//25.08 (flatpak runtimes)
+# - org.electronjs.Electron2.BaseApp//25.08 (flatpak electron base)
+# - libxcrypt-compat (provides libcrypt.so.1 for fpm's bundled Ruby - Fedora 39+)
+# - libarchive / bsdtar (pacman target)
+#
+# Fedora: sudo dnf install flatpak flatpak-builder libxcrypt-compat libarchive
+# Ubuntu/Debian: sudo apt install flatpak flatpak-builder libarchive-tools
+
+[tasks.check-electron-deps]
+description = "Check system dependencies for electron-builder"
+run = """
+#!/usr/bin/env bash
+set -e
+echo "Checking electron-builder system dependencies..."
+missing=()
+
+command -v flatpak >/dev/null 2>&1 || missing+=("flatpak")
+command -v flatpak-builder >/dev/null 2>&1 || missing+=("flatpak-builder")
+command -v bsdtar >/dev/null 2>&1 || missing+=("bsdtar (libarchive)")
+ldconfig -p 2>/dev/null | grep -q libcrypt.so.1 || missing+=("libxcrypt-compat")
+
+flatpak info org.freedesktop.Sdk//25.08 >/dev/null 2>&1 || missing+=("flatpak runtime: org.freedesktop.Sdk//25.08")
+flatpak info org.freedesktop.Platform//25.08 >/dev/null 2>&1 || missing+=("flatpak runtime: org.freedesktop.Platform//25.08")
+flatpak info org.electronjs.Electron2.BaseApp//25.08 >/dev/null 2>&1 || missing+=("flatpak base: org.electronjs.Electron2.BaseApp//25.08")
+
+if [ ${#missing[@]} -eq 0 ]; then
+  echo "✓ All dependencies satisfied"
+else
+  echo "✗ Missing dependencies:"
+  for dep in "${missing[@]}"; do
+    echo "  - $dep"
+  done
+  exit 1
+fi
+"""

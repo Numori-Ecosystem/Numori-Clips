@@ -1,0 +1,108 @@
+{
+  "name": "numori-clips",
+  "type": "module",
+  "main": "electron/main.js",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Free, open-source Clipboard app with sync ability and truly multi-platform",
+  "author": {
+    "name": "Erik Bjerke",
+    "email": "contact@erikbjerke.com",
+    "url": "https://erikbjerke.com"
+  },
+  "contributors": [
+    {
+      "name": "TheProcedural Software Ltd",
+      "email": "contact@theprocedural.com",
+      "url": "https://theprocedural.com"
+    },
+    {
+      "name": "Yaiza Wadhwani Valderas",
+      "email": "yaizawv@proton.me"
+    }
+  ],
+  "license": "AGPL-3.0",
+  "homepage": "https://github.com/Numori-Ecosystem/Numori-Clips",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Numori-Ecosystem/Numori-Clips.git"
+  },
+  "keywords": [
+    "clipboard",
+    "multi-platform",
+    "open-source",
+    "pwa",
+    "vue",
+    "nuxt"
+  ],
+  "scripts": {
+    "build": "nuxt build",
+    "build:app": "nuxt generate && npx cap sync && npx electron-builder --config electron-builder.config.js",
+    "build:phones": "nuxt generate && npx cap sync",
+    "build:desktop": "nuxt generate && npx electron-builder --config electron-builder.config.js",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "open": "npx cap open android && npx cap open ios",
+    "dev": "rm -f public/version.json public/sw.js && nuxt cleanup && nuxt dev --host 0.0.0.0",
+    "dev:android": "npx cap run android -l --host localhost --port 3000 --forwardPorts 3000:3000",
+    "dev:ios": "npx cap run ios -l --port 3000",
+    "dev:desktop": "VITE_DEV_SERVER_URL=http://localhost:3000 npx electron electron/main.js",
+    "dev:phones": "concurrently -n android,ios -c green,yellow \"npm run dev:android\" \"npm run dev:ios\"",
+    "dev:db": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:db:stop": "docker compose -f docker-compose.dev.yml down",
+    "dev:full": "docker compose -f docker-compose.dev.yml up -d && npm run dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/ios": "^8.3.1",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/privacy-screen": "^2.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
+    "@capgo/capacitor-native-biometric": "^8.4.2",
+    "@nuxt/fonts": "^0.14.0",
+    "@nuxt/icon": "^2.2.1",
+    "@nuxtjs/color-mode": "^4.0.0",
+    "@nuxtjs/i18n": "^10.2.4",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@tailwindcss/typography": "^0.5.19",
+    "@vueuse/core": "^14.2.1",
+    "@vueuse/nuxt": "^14.2.1",
+    "bcryptjs": "^3.0.3",
+    "dexie": "^4.4.2",
+    "nodemailer": "^8.0.5",
+    "nuxt": "4.4.2",
+    "pg": "^8.20.0",
+    "tailwind-merge": "^3.5.0",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.3.1",
+    "@iconify-json/mdi": "^1.2.3",
+    "@nuxt/eslint": "^1.15.2",
+    "@types/node": "^25.6.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3",
+    "vitest": "^4.1.4"
+  }
+}

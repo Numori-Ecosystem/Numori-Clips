@@ -1,0 +1,9 @@
+node_modules
+.nuxt
+.output
+dist
+android
+ios
+*.min.js
+package-lock.json
+*.vue
