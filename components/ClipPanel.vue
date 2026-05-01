@@ -179,9 +179,20 @@ const selectedClipId = ref(null)
 // Zone 1 = action buttons (favorites, incognito)
 // Zone 2 = type filters
 // Zone 3 = clips
-const activeZone = ref(0)
+const activeZone = ref(3)
 const zoneIndex = ref(0) // horizontal index within the active zone
 const lastZoneIndex = ref([0, 0, 0, 0]) // remembered index per zone
+
+function resetFocusToClips() {
+  activeZone.value = 3
+  zoneIndex.value = 0
+  lastZoneIndex.value = [0, 0, 0, 0]
+  const clips = clipboard.filteredClips.value
+  if (clips.length) {
+    selectedClipId.value = clips[0].id
+    scrollToCard(0)
+  }
+}
 
 function getActionButtons() {
   return [favBtnRef.value, incognitoBtnRef.value, settingsBtnRef.value].filter(Boolean)
@@ -460,8 +471,14 @@ function onGlobalKeydown(e) {
 }
 
 // ── Tray actions ─────────────────────────────────────────────────────────
+function onWindowFocus() {
+  resetFocusToClips()
+}
+
 onMounted(() => {
   document.addEventListener('keydown', onGlobalKeydown)
+  window.addEventListener('focus', onWindowFocus)
+  nextTick(() => resetFocusToClips())
 
   if (globalThis.window?.electronAPI?.onTrayAction) {
     globalThis.window.electronAPI.onTrayAction((data) => {
@@ -477,6 +494,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onGlobalKeydown)
+  window.removeEventListener('focus', onWindowFocus)
 })
 
 defineExpose({
