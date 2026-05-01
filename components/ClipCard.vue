@@ -114,11 +114,19 @@
         </p>
       </div>
 
-      <!-- Code -->
+      <!-- Code (syntax highlighted) -->
       <div v-else-if="clip.type === 'code'" class="flex-1 min-h-0 flex flex-col">
+        <div class="flex items-center justify-between mb-1">
+          <span
+            v-if="clip.meta?.language && clip.meta.language !== 'plaintext'"
+            class="text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 px-1"
+          >
+            {{ languageDisplayName }}
+          </span>
+        </div>
         <pre
-          class="text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 font-mono overflow-hidden whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5 flex-1"
-        >{{ clip.preview }}</pre>
+          class="code-highlight text-[11px] leading-relaxed font-mono overflow-hidden whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5 flex-1"
+        ><code v-html="highlightedCode"></code></pre>
       </div>
 
       <!-- File -->
@@ -139,6 +147,8 @@
 </template>
 
 <script setup>
+import { highlightCode, detectLanguageName } from '~/composables/useCodeHighlight.js'
+
 const props = defineProps({
   clip: { type: Object, required: true },
   isSelected: { type: Boolean, default: false },
@@ -166,6 +176,17 @@ const typeBadgeClasses = computed(() => typeConfig[props.clip.type]?.badge || ty
 const svgDataUrl = computed(() => {
   if (!props.clip.meta?.svg) return ''
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(props.clip.content)}`
+})
+
+// ── Code highlighting ────────────────────────────────────────────────────
+const highlightedCode = computed(() => {
+  if (props.clip.type !== 'code') return ''
+  const code = props.clip.preview || props.clip.content || ''
+  return highlightCode(code, props.clip.meta?.language)
+})
+
+const languageDisplayName = computed(() => {
+  return detectLanguageName(props.clip.meta?.language)
 })
 
 // Relative time

@@ -73,7 +73,14 @@ function isFilePath(text) {
 }
 
 // ── Code detection ───────────────────────────────────────────────────────
-// Heuristic: contains multiple lines with code-like patterns
+// Heuristic: contains code-like patterns. Uses a scoring system where
+// stronger signals (like import statements) carry more weight.
+//
+// The approach is layered:
+//   1. Strong signals — a single match is decisive (e.g. `import … from`)
+//   2. General indicators — need 2+ matches for multi-line content
+//   3. Structural analysis — bracket/brace density as a fallback
+
 const CODE_INDICATORS = [
   /^\s*(import|export|from|require)\s/m,
   /^\s*(function|const|let|var|class|interface|type|enum)\s/m,
@@ -83,20 +90,160 @@ const CODE_INDICATORS = [
   /[{};]\s*$/m,                              // C-like line endings
   /^\s*<\/?[a-z][\w-]*[\s>]/im,             // HTML/XML tags
   /^\s*@\w+/m,                               // Decorators/annotations
-  /=>\s*{/,                                  // Arrow functions
+  /=>\s*[{(]/,                               // Arrow functions
   /^\s*#\s*(include|define|ifdef|pragma)/m,  // C preprocessor
+  /^\s*(public|private|protected)\s/m,       // Access modifiers (Java/C#/TS)
+  /^\s*(package|func |import ")/m,           // Go
+  /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s/im, // SQL
+  /^\s*\$[\w_]+\s*=/m,                       // PHP variables
+  /^\s*module\.exports\s*=/m,                // CommonJS
+  /^\s*console\.(log|error|warn|info)\(/m,   // JS console
+  /^\s*print\s*\(/m,                         // Python print
+  /^\s*(?:async\s+)?function\s*\w*\s*\(/m,  // Function declarations
+  /^\s*(echo|export|alias|source)\s/m,       // Shell builtins
+  /^\s*(local|readonly)\s+\w+=/m,            // Shell/Lua locals
+  /^\s*\[\[.*\]\]/m,                         // Bash conditionals
 ]
+
+// Strong signals — a single match is enough to classify as code
+const STRONG_CODE_SIGNALS = [
+  /^\s*import\s+.*\s+from\s+['"].*['"]/m,   // ES module import
+  /^\s*const\s+\w+\s*=\s*require\s*\(/m,    // CommonJS require
+  /^\s*#!\s*\/.*\b(bash|sh|node|python|ruby|perl)\b/m, // Shebang
+  /^\s*<\?php/m,                              // PHP opening tag
+  /^\s*package\s+\w+/m,                       // Java/Go package
+  /^\s*#\s*include\s*[<"]/m,                  // C/C++ include
+  /^\s*using\s+System/m,                      // C# using
+  /^\s*import\s+\w+\.\w+/m,                  // Java import
+  /^\s*from\s+\w+\s+import\s+/m,             // Python from-import
+  /^\s*def\s+\w+\s*\(.*\)\s*(->\s*\w+\s*)?:/m, // Python function def
+  /^\s*fn\s+\w+\s*\(/m,                      // Rust function
+  /^\s*func\s+\w+\s*\(/m,                    // Go function
+  /^\s*<!DOCTYPE\s/im,                        // HTML doctype
+  /^\s*<html[\s>]/im,                         // HTML root
+  /^\s*@(media|keyframes|font-face|import|charset|supports|layer)\b/m, // CSS at-rules
+  /^\s*(SELECT|INSERT INTO|CREATE TABLE|ALTER TABLE|DROP TABLE)\s/im,  // SQL DDL/DML
+  /^\s*FROM\s+\S+.*\n\s*(RUN|CMD|COPY|ADD|EXPOSE|WORKDIR|ENV)\s/m,    // Dockerfile
+  /^[-+]{3}\s.*\n.*\n@@\s/m,                 // Unified diff
+]
+
+/**
+ * Detect CSS/SCSS/LESS content.
+ * CSS is tricky because `property: value;` looks like plain text.
+ * We look for selector + block patterns with known CSS properties.
+ */
+const CSS_PROPERTY_RE = /\b(display|position|margin|padding|border|background|color|font|width|height|top|left|right|bottom|flex|grid|align|justify|overflow|opacity|z-index|transform|transition|animation|box-shadow|box-sizing|text-align|text-decoration|line-height|letter-spacing|cursor|visibility|content|gap|max-width|min-width|max-height|min-height|float|clear|outline|white-space|vertical-align|list-style|pointer-events|user-select|appearance)\s*:/m
+
+function isCssLike(text) {
+  const t = text.trim()
+  // Must have at least one selector-like pattern followed by a block
+  // Selectors can start with *, ., #, @, :, or a word character
+  const hasBlock = /[*.#@:\w][\w\s*.#:,>+~[\]()=-]*\{[^}]*\}/s.test(t)
+  if (!hasBlock) return false
+  // Must contain recognizable CSS properties
+  return CSS_PROPERTY_RE.test(t)
+}
+
+/**
+ * Detect JSON content.
+ * Looks for object/array structure with quoted keys.
+ */
+function isJsonLike(text) {
+  const t = text.trim()
+  // Must start with { or [ and end with } or ]
+  if (!/^\s*[{[]/.test(t) || !/[}\]]\s*$/.test(t)) return false
+  // Must have quoted keys (for objects) or be a non-trivial array
+  if (/^\s*\{/.test(t)) return /"[\w$]+":\s/.test(t)
+  // Array: must have multiple elements
+  return t.split('\n').length >= 2
+}
+
+/**
+ * Detect YAML content.
+ * key: value pairs without braces, often with indentation-based nesting.
+ */
+function isYamlLike(text) {
+  const t = text.trim()
+  const lines = t.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))
+  if (lines.length < 2) return false
+  // Must have at least two key: value pairs to avoid matching prose like "TODO:\n- item"
+  const kvLines = lines.filter((l) => /^\s*[\w][\w.-]*\s*:\s+\S/.test(l))
+  if (kvLines.length < 2) return false
+  // Most lines should match key: value or be list items (- item)
+  let yamlLines = 0
+  for (const line of lines) {
+    if (/^\s*[\w][\w.-]*\s*:(\s|$)/.test(line) || /^\s*-\s/.test(line)) {
+      yamlLines++
+    }
+  }
+  return yamlLines / lines.length >= 0.6
+}
+
+/**
+ * Detect shell script content.
+ */
+function isShellLike(text) {
+  const t = text.trim()
+  const lines = t.split('\n')
+  if (lines.length < 2) return false
+
+  const shellPatterns = [
+    /^\s*(if|then|else|elif|fi|for|do|done|while|case|esac)\b/,
+    /^\s*(echo|export|alias|source|chmod|mkdir|rm|cp|mv|grep|awk|sed|cat|cd|ls|pwd|curl|wget|apt|yum|brew|npm|pip|git|docker|sudo)\s/,
+    /^\s*(local|readonly)\s+\w+=/,
+    /\$\{?\w+\}?/,                           // Variable expansion
+    /\|\s*\w+/,                               // Pipe
+    /^\s*#\s*\w/,                             // Comments (not shebangs)
+    /&&\s*\w/,                                // Command chaining
+    /^\s*\w+=\S+/,                            // Variable assignment (VAR=value)
+  ]
+
+  let score = 0
+  for (const pattern of shellPatterns) {
+    if (pattern.test(t)) score++
+  }
+  // Also count how many lines start with common commands
+  let cmdLines = 0
+  for (const line of lines) {
+    if (/^\s*(echo|export|mkdir|rm|cp|mv|grep|cat|cd|ls|curl|wget|sudo|apt|npm|pip|git|docker|chmod|chown|tar|unzip|ssh|scp)\s/.test(line.trim())) {
+      cmdLines++
+    }
+  }
+  // If most lines are commands, that's a strong signal
+  if (cmdLines >= 2 && cmdLines / lines.length >= 0.4) return true
+  return score >= 2
+}
 
 function isCode(text) {
   const t = text.trim()
-  // Must be multi-line or have strong code signals
   const lines = t.split('\n')
+
+  // Check strong signals first — a single match is decisive
+  for (const pattern of STRONG_CODE_SIGNALS) {
+    if (pattern.test(t)) return true
+  }
+
+  // Language-specific structural checks
+  if (isCssLike(t)) return true
+  if (isJsonLike(t)) return true
+  if (isYamlLike(t)) return true
+  if (isShellLike(t)) return true
+
+  // For multi-line content, use the scoring system
   if (lines.length < 2) return false
 
   let score = 0
   for (const pattern of CODE_INDICATORS) {
     if (pattern.test(t)) score++
   }
+
+  // Structural heuristic: high density of braces/semicolons across lines
+  // suggests code even if no specific keyword matched
+  if (score === 1 && lines.length >= 3) {
+    const braceLines = lines.filter((l) => /[{};]/.test(l)).length
+    if (braceLines / lines.length >= 0.3) score++
+  }
+
   // Need at least 2 code indicators to classify as code
   return score >= 2
 }
@@ -107,17 +254,97 @@ function isCode(text) {
  */
 export function detectCodeLanguage(text) {
   const t = text.trim()
-  if (/^\s*<(!DOCTYPE|html|head|body|div|span|p|a|img|script|style|link|meta)\b/im.test(t)) return 'html'
-  if (/^\s*(import|export|from)\s.*\bfrom\b/m.test(t) || /=>\s*{/.test(t)) return 'javascript'
-  if (/^\s*(def|class|import|from|print|if __name__)/m.test(t)) return 'python'
-  if (/^\s*(pub fn|fn |impl |struct |use |mod )/m.test(t)) return 'rust'
-  if (/^\s*(package|func |import ")/m.test(t)) return 'go'
-  if (/^\s*#\s*(include|define|ifdef)/m.test(t)) return 'c'
-  if (/^\s*(public|private|protected)\s+(static\s+)?(void|int|String|class)/m.test(t)) return 'java'
-  if (/^\s*\{[\s\S]*"[\w]+":/m.test(t)) return 'json'
-  if (/^\s*[\w-]+\s*:\s*.+/m.test(t) && !/{/.test(t)) return 'yaml'
+
+  // Shebang line — strongest signal
+  const shebang = t.match(/^#!\s*\/.*\b(bash|sh|node|python[23]?|ruby|perl)\b/m)
+  if (shebang) {
+    const interp = shebang[1]
+    if (interp === 'node') return 'javascript'
+    if (interp.startsWith('python')) return 'python'
+    if (interp === 'sh' || interp === 'bash') return 'bash'
+    return interp
+  }
+
+  // PHP opening tag
+  if (/^\s*<\?php/m.test(t)) return 'php'
+
+  // Dockerfile
+  if (/^\s*FROM\s+\S+/m.test(t) && /^\s*(RUN|CMD|COPY|ADD|EXPOSE|WORKDIR|ENV)\s/m.test(t)) return 'dockerfile'
+
+  // Diff (check early — very distinctive)
+  if (/^[-+]{3}\s/m.test(t) && /^@@\s/m.test(t)) return 'diff'
+
+  // HTML/XML (check before JS since JSX can confuse things)
+  if (/^\s*<!DOCTYPE\s+html/im.test(t)) return 'html'
+  if (/^\s*<(html|head|body|div|span|p|a|img|script|style|link|meta)\b/im.test(t)) return 'html'
+
+  // CSS / SCSS / LESS — check before general languages
+  if (isCssLike(t)) return 'css'
+  if (/^\s*@(media|keyframes|font-face|import|charset|supports|layer)\b/m.test(t) && CSS_PROPERTY_RE.test(t)) return 'css'
+
+  // TypeScript (check before JS — look for type annotations)
+  if (/:\s*(string|number|boolean|void|any|never|unknown)\b/.test(t) ||
+      /\binterface\s+\w+/.test(t) ||
+      /\btype\s+\w+\s*=/.test(t)) return 'typescript'
+
+  // JavaScript / ES modules
+  if (/^\s*(import|export)\s.*\bfrom\b/m.test(t) || /=>\s*[{(]/.test(t) ||
+      /\bconst\s+\w+\s*=\s*require\s*\(/.test(t) || /\bconsole\.\w+\(/.test(t)) return 'javascript'
+
+  // Python
+  if (/^\s*(def|class|import|from|print|if __name__)/m.test(t) ||
+      /^\s*async\s+def\s/m.test(t)) return 'python'
+
+  // Rust
+  if (/^\s*(pub fn|fn |impl |struct |use |mod )/m.test(t) ||
+      /\blet\s+mut\s/.test(t)) return 'rust'
+
+  // Go
+  if (/^\s*(package|func |import ")/m.test(t) ||
+      /\b:=\s/.test(t) && /\bfunc\b/.test(t)) return 'go'
+
+  // C/C++
+  if (/^\s*#\s*(include|define|ifdef)/m.test(t)) {
+    // Distinguish C++ from C
+    if (/\b(class|namespace|template|std::)\b/.test(t)) return 'cpp'
+    return 'c'
+  }
+
+  // Java
+  if (/^\s*(public|private|protected)\s+(static\s+)?(void|int|String|class)/m.test(t) ||
+      /^\s*import\s+\w+\.\w+/m.test(t)) return 'java'
+
+  // C#
+  if (/^\s*using\s+System/m.test(t) || /\bnamespace\s+\w+/m.test(t) && /\bclass\s+\w+/m.test(t)) return 'csharp'
+
+  // Kotlin
+  if (/^\s*(fun |val |var |data class |sealed class |object )/m.test(t)) return 'kotlin'
+
+  // Swift
+  if (/^\s*(func |let |var |struct |protocol |guard )/m.test(t) && /\b(->|@objc|import\s+\w+)\b/.test(t)) return 'swift'
+
+  // SQL
   if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s/im.test(t)) return 'sql'
+
+  // JSON
+  if (isJsonLike(t)) return 'json'
+
+  // YAML
+  if (isYamlLike(t)) return 'yaml'
+
+  // Bash/Shell
+  if (isShellLike(t)) return 'bash'
+  if (/^\s*(echo|export|alias|source|chmod|mkdir|rm|cp|mv|grep|awk|sed)\s/m.test(t)) return 'bash'
+
+  // Lua
+  if (/^\s*(local\s+\w+|function\s+\w+)/m.test(t) && /\bend\b/m.test(t)) return 'lua'
+
+  // Ruby
+  if (/^\s*(require|puts|def\s+\w+|class\s+\w+)/m.test(t) && /\bend\b/m.test(t)) return 'ruby'
+
+  // PHP (without opening tag)
   if (/^\s*\$[\w_]+\s*=/m.test(t)) return 'php'
+
   return 'plaintext'
 }
 

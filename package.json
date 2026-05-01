@@ -83,6 +83,7 @@
     "@vueuse/nuxt": "^14.2.1",
     "bcryptjs": "^3.0.3",
     "dexie": "^4.4.2",
+    "highlight.js": "^11.11.1",
     "nodemailer": "^8.0.5",
     "nuxt": "4.4.2",
     "pg": "^8.20.0",

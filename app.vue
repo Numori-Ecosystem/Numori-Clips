@@ -40,6 +40,21 @@ body {
   transition: none !important;
 }
 
+/* Allow text selection in code clips */
+pre code,
+pre.code-highlight {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Base text color for code highlights */
+.code-highlight code {
+  color: #24292e;
+}
+.dark .code-highlight code {
+  color: #abb2bf;
+}
+
 /* Disable text selection everywhere except inputs, textareas, and CodeMirror */
 *,
 *::before,

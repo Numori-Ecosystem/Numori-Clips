@@ -21,6 +21,8 @@ export default defineNuxtConfig({
     },
   },
 
+  css: ['~/assets/css/code-highlight.css'],
+
   app: {
     head: {
       title: 'Numori Clips',
@@ -218,6 +220,7 @@ export default defineNuxtConfig({
       include: [
         'tailwind-merge',
         'dexie',
+        'highlight.js/lib/core',
         '@capacitor/app',
         '@capacitor/core',
         '@capacitor/status-bar',
