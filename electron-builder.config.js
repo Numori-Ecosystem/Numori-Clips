@@ -7,27 +7,28 @@ export default {
   directories: {
     output: 'dist-electron',
   },
-  files: ['.output/public/**/*', 'electron/**/*', 'package.json'],
+  files: ['.output/public/**/*', 'electron/**/*', 'icons/**/*', 'package.json'],
   icon: 'icons/icon.png',
   mac: {
     category: 'public.app-category.productivity',
     icon: 'icons/icon.icns',
-    target: [
-      'dmg',
-    ],
+    target: ['dmg'],
   },
   win: {
     icon: 'icons/icon.ico',
-    target: [
-      'nsis',
-    ],
+    target: ['nsis'],
   },
   linux: {
     icon: 'icons',
-    target: [
-      'rpm',
-    ],
+    target: ['rpm'],
     category: 'Utility',
+    extraResources: [
+      {
+        from: 'icons',
+        to: 'icons',
+        filter: ['**/*.png'],
+      },
+    ],
   },
   flatpak: {
     runtime: 'org.freedesktop.Platform',

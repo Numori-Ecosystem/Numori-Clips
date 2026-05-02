@@ -192,11 +192,19 @@ function stopClipboardPolling() {
 // ── System tray ──────────────────────────────────────────────────────────
 
 function createTray() {
-  const iconPath = join(__dirname, '..', 'icons', '16x16.png')
+  // In production builds, icons are in extraResources (resources/icons/) or
+  // bundled alongside the app asar (icons/). Use process.resourcesPath for
+  // packaged builds so the file is always reachable on disk — critical for
+  // GNOME's AppIndicator/SNI which reads the icon via filesystem path.
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icons', '32x32.png')
+    : join(__dirname, '..', 'icons', '32x32.png')
   let trayIcon
   try {
     trayIcon = nativeImage.createFromPath(iconPath)
+    if (trayIcon.isEmpty()) throw new Error('Icon loaded but empty')
     if (process.platform === 'darwin') trayIcon = trayIcon.resize({ width: 16, height: 16 })
+    else if (process.platform === 'linux') trayIcon = trayIcon.resize({ width: 24, height: 24 })
   } catch {
     trayIcon = nativeImage.createEmpty()
   }
