@@ -400,7 +400,7 @@ async function createWindow() {
     if (input.key === 'Escape' && input.type === 'keyDown') dismissMainWindow()
   })
 
-  mainWindow.loadURL(DEV_BASE ? `${DEV_BASE}clips` : 'app://./clips')
+  mainWindow.loadURL(DEV_BASE ? `${DEV_BASE}clips` : 'app://localhost/clips')
 
   // Prevent Nuxt from overriding the window title — we need distinct titles for the GNOME extension
   mainWindow.on('page-title-updated', (e) => e.preventDefault())
@@ -492,7 +492,7 @@ function openSettingsWindow(section) {
   })
   settingsWindow.on('page-title-updated', (e) => e.preventDefault())
   const qs = section ? `?section=${section}` : ''
-  settingsWindow.loadURL(DEV_BASE ? `${DEV_BASE}settings${qs}` : `app://./settings${qs}`)
+  settingsWindow.loadURL(DEV_BASE ? `${DEV_BASE}settings${qs}` : `app://localhost/settings${qs}`)
   settingsWindow.on('closed', () => {
     settingsWindow = null
   })
@@ -527,7 +527,7 @@ function openAboutWindow() {
     return { action: 'deny' }
   })
   aboutWindow.on('page-title-updated', (e) => e.preventDefault())
-  aboutWindow.loadURL(DEV_BASE ? `${DEV_BASE}about` : 'app://./about')
+  aboutWindow.loadURL(DEV_BASE ? `${DEV_BASE}about` : 'app://localhost/about')
   aboutWindow.on('closed', () => {
     aboutWindow = null
   })
@@ -563,7 +563,7 @@ function openAuthWindow() {
     return { action: 'deny' }
   })
   authWindow.on('page-title-updated', (e) => e.preventDefault())
-  authWindow.loadURL(DEV_BASE ? `${DEV_BASE}auth` : 'app://./auth')
+  authWindow.loadURL(DEV_BASE ? `${DEV_BASE}auth` : 'app://localhost/auth')
   authWindow.on('closed', () => {
     authWindow = null
   })
@@ -601,7 +601,7 @@ function openVerifyEmailWindow() {
     return { action: 'deny' }
   })
   verifyEmailWindow.on('page-title-updated', (e) => e.preventDefault())
-  verifyEmailWindow.loadURL(DEV_BASE ? `${DEV_BASE}verify-email` : 'app://./verify-email')
+  verifyEmailWindow.loadURL(DEV_BASE ? `${DEV_BASE}verify-email` : 'app://localhost/verify-email')
   verifyEmailWindow.on('closed', () => {
     verifyEmailWindow = null
   })
@@ -638,7 +638,7 @@ function openWizardWindow() {
     return { action: 'deny' }
   })
   wizardWindow.on('page-title-updated', (e) => e.preventDefault())
-  wizardWindow.loadURL(DEV_BASE ? `${DEV_BASE}wizard` : 'app://./wizard')
+  wizardWindow.loadURL(DEV_BASE ? `${DEV_BASE}wizard` : 'app://localhost/wizard')
   wizardWindow.on('closed', () => {
     wizardWindow = null
     showMainWindow()
@@ -782,13 +782,29 @@ app.whenReady().then(async () => {
     let filePath = decodeURIComponent(url.pathname)
     if (process.platform === 'win32' && filePath.startsWith('/')) filePath = filePath.slice(1)
     if (filePath === '/' || filePath === '') filePath = '/index.html'
+
+    // If the path has no file extension, try serving the directory's index.html
+    // (nuxt generate creates e.g. clips/index.html for the /clips route)
+    const hasExtension = /\.[^/]+$/.test(filePath)
     const resolvedPath = normalize(join(STATIC_DIR, filePath))
     if (!resolvedPath.startsWith(STATIC_DIR)) return new Response('Forbidden', { status: 403 })
+
+    const indexPath = hasExtension ? null : normalize(join(STATIC_DIR, filePath, 'index.html'))
+    const fallbackUrl = pathToFileURL(join(STATIC_DIR, 'index.html')).href
+
+    if (indexPath) {
+      // For extensionless paths (SPA routes), try the directory's index.html first
+      return net
+        .fetch(pathToFileURL(indexPath).href)
+        .then((r) => (r.ok ? r : net.fetch(fallbackUrl)))
+        .catch(() => net.fetch(fallbackUrl))
+    }
+
     const fileUrl = pathToFileURL(resolvedPath).href
     return net
       .fetch(fileUrl)
-      .then((r) => (r.ok ? r : net.fetch(pathToFileURL(join(STATIC_DIR, 'index.html')).href)))
-      .catch(() => net.fetch(pathToFileURL(join(STATIC_DIR, 'index.html')).href))
+      .then((r) => (r.ok ? r : net.fetch(fallbackUrl)))
+      .catch(() => net.fetch(fallbackUrl))
   })
 
   if (process.platform === 'darwin') {

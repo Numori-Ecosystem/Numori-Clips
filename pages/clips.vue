@@ -76,6 +76,21 @@ const openVerifyEmail = () => {
 
 // --- Lifecycle ---
 onMounted(async () => {
+  // Always register tray action listener first — needed for wizard completion
+  if (window.electronAPI?.onTrayAction) {
+    window.electronAPI.onTrayAction(async (data) => {
+      if (data.action === 'toggle-incognito') {
+        clipboard.incognitoMode.value = !clipboard.incognitoMode.value
+        globalThis.window?.electronAPI?.setIncognito(clipboard.incognitoMode.value)
+      }
+      if (data.action === 'wizard-completed') {
+        await welcomeWizard.complete()
+        // Initialize clipboard after wizard completes (was skipped during early return)
+        await initApp()
+      }
+    })
+  }
+
   // On Electron, check if wizard needs to show first
   if (isElectron) {
     await welcomeWizard.showIfFirstTime()
@@ -86,6 +101,10 @@ onMounted(async () => {
     }
   }
 
+  await initApp()
+})
+
+async function initApp() {
   await appLock.loadSettings()
   appLock.initAppListeners()
   appLock.detectBiometrics()
@@ -105,19 +124,7 @@ onMounted(async () => {
       toggleIncognito: localePrefs.preferences.shortcutToggleIncognito || null,
     })
   }
-
-  if (window.electronAPI?.onTrayAction) {
-    window.electronAPI.onTrayAction(async (data) => {
-      if (data.action === 'toggle-incognito') {
-        clipboard.incognitoMode.value = !clipboard.incognitoMode.value
-        globalThis.window?.electronAPI?.setIncognito(clipboard.incognitoMode.value)
-      }
-      if (data.action === 'wizard-completed') {
-        await welcomeWizard.complete()
-      }
-    })
-  }
-})
+}
 
 onUnmounted(() => {
   clipboard.destroy()

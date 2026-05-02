@@ -20,7 +20,7 @@ export default {
   },
   linux: {
     icon: 'icons',
-    target: ['rpm'],
+    target: ['appimage', 'rpm'],
     category: 'Utility',
     extraResources: [
       {
