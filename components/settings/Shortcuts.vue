@@ -66,6 +66,7 @@
 </template>
 
 <script setup>
+/* eslint-disable vue/no-mutating-props */
 const props = defineProps({
   preferences: { type: Object, required: true },
   onSettingChange: { type: Function, required: true },

@@ -16,7 +16,7 @@
             placeholder="Search clips…"
             class="w-full pl-9 pr-9 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-400/50 focus:border-primary-400 dark:focus:ring-primary-500/50 dark:focus:border-primary-500 outline-none transition-all"
             @keydown.escape="handleEscape"
-          />
+          >
           <button
             v-if="clipboard.searchQuery.value"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -305,7 +305,7 @@ function handleDelete(id) {
   }
 }
 
-function confirmClearAll() {
+function _confirmClearAll() {
   clipboard.clearAll()
   toast.show('All clips cleared', { type: 'info', icon: 'mdi:delete-sweep-outline', duration: 2000 })
 }

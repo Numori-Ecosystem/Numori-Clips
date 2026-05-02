@@ -1,5 +1,3 @@
-import db from '~/db.js'
-
 /**
  * Auth-related action handlers for the index page.
  */
@@ -97,12 +95,8 @@ export function useAuthHandlers({ auth, appLock }) {
   }
 
   const handleDeleteData = async (password) => {
-    try {
-      await auth.requestDeletion('data', password)
-      await auth.refreshUser()
-    } catch (err) {
-      throw err
-    }
+    await auth.requestDeletion('data', password)
+    await auth.refreshUser()
   }
 
   const handleDeleteAccount = async (password) => {

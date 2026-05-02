@@ -103,7 +103,7 @@ const props = defineProps({
 const emit = defineEmits(['update-profile', 'change-password', 'logout', 'navigate-section'])
 
 const toast = useToast()
-const { apiFetch } = useApi()
+const { apiFetch: _apiFetch } = useApi()
 
 const saving = ref(false)
 const subSection = ref(null) // 'edit' | 'password' | 'avatar' | null

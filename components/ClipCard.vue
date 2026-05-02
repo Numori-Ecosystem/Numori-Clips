@@ -77,7 +77,7 @@
           alt="SVG image"
           class="w-full h-full object-contain"
           loading="lazy"
-        />
+        >
         <!-- Data URL / binary image (including converted file paths) -->
         <img
           v-else
@@ -85,7 +85,7 @@
           alt="Clipboard image"
           class="w-full h-full object-contain"
           loading="lazy"
-        />
+        >
       </div>
 
       <!-- Color -->
@@ -114,7 +114,7 @@
         </p>
       </div>
 
-      <!-- Code (syntax highlighted) -->
+      <!-- eslint-disable vue/no-v-html, vue/html-self-closing -->
       <div v-else-if="clip.type === 'code'" class="flex-1 min-h-0 flex flex-col">
         <div class="flex items-center justify-between mb-1">
           <span
@@ -128,6 +128,7 @@
           class="code-highlight text-[11px] leading-relaxed font-mono overflow-hidden whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 rounded-lg p-2 -mx-0.5 flex-1"
         ><code v-html="highlightedCode"></code></pre>
       </div>
+      <!-- eslint-enable vue/no-v-html, vue/html-self-closing -->
 
       <!-- File -->
       <div v-else-if="clip.type === 'file'" class="flex-1 min-h-0 flex items-center gap-2">

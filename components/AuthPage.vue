@@ -143,8 +143,7 @@ const handleClose = () => {
 }
 const handleMinimize = () => globalThis.window?.electronAPI?.minimize()
 
-// Non-Electron: show a back button
-const router = useRouter()
+// Non-Electron: navigateTo handles routing
 
 const step = ref('auth')
 const mode = ref('login')
