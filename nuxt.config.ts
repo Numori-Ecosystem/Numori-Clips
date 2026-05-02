@@ -3,24 +3,6 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
 
-  // Workaround for https://github.com/nuxt/nuxt/issues/34812
-  // Remove the @nuxt/nitro-server duplicate useAppConfig auto-import
-  // (safe to remove once the upstream fix lands)
-  hooks: {
-    'nitro:config'(nitroConfig) {
-      const imports = nitroConfig.imports
-      if (imports && typeof imports === 'object' && 'imports' in imports && imports.imports) {
-        imports.imports = imports.imports.filter(
-          (i) =>
-            !(
-              (i as { name?: string })?.name === 'useAppConfig' &&
-              String((i as { from?: string })?.from || '').includes('nitro-server')
-            ),
-        )
-      }
-    },
-  },
-
   css: ['~/assets/css/code-highlight.css'],
 
   app: {
@@ -35,8 +17,7 @@ export default defineNuxtConfig({
         },
         {
           name: 'description',
-          content:
-            'Free, open-source clipboard app with sync ability and truly multi-platform.',
+          content: 'Free, open-source clipboard app with sync ability and truly multi-platform.',
         },
         { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
@@ -46,16 +27,14 @@ export default defineNuxtConfig({
         { name: 'og:title', content: 'Numori Clips' },
         {
           name: 'og:description',
-          content:
-            'Free, open-source clipboard app with sync ability and truly multi-platform.',
+          content: 'Free, open-source clipboard app with sync ability and truly multi-platform.',
         },
         { name: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary' },
         { name: 'twitter:title', content: 'Numori Clips' },
         {
           name: 'twitter:description',
-          content:
-            'Free, open-source clipboard app with sync ability and truly multi-platform.',
+          content: 'Free, open-source clipboard app with sync ability and truly multi-platform.',
         },
       ],
       link: [
@@ -211,10 +190,8 @@ export default defineNuxtConfig({
     appVersion: process.env.npm_package_version || '0.0.0',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
-      storeAndroid:
-        process.env.NUXT_PUBLIC_STORE_ANDROID || '',
-      storeIos:
-        process.env.NUXT_PUBLIC_STORE_IOS || '',
+      storeAndroid: process.env.NUXT_PUBLIC_STORE_ANDROID || '',
+      storeIos: process.env.NUXT_PUBLIC_STORE_IOS || '',
     },
   },
   vite: {
@@ -230,6 +207,31 @@ export default defineNuxtConfig({
         '@capacitor/share',
         '@capacitor/privacy-screen',
         '@capacitor/network',
+        'highlight.js/lib/languages/javascript',
+        'highlight.js/lib/languages/typescript',
+        'highlight.js/lib/languages/python',
+        'highlight.js/lib/languages/c',
+        'highlight.js/lib/languages/cpp',
+        'highlight.js/lib/languages/csharp',
+        'highlight.js/lib/languages/php',
+        'highlight.js/lib/languages/ruby',
+        'highlight.js/lib/languages/perl',
+        'highlight.js/lib/languages/css',
+        'highlight.js/lib/languages/xml',
+        'highlight.js/lib/languages/bash',
+        'highlight.js/lib/languages/json',
+        'highlight.js/lib/languages/yaml',
+        'highlight.js/lib/languages/ini',
+        'highlight.js/lib/languages/diff',
+        'highlight.js/lib/languages/sql',
+        'highlight.js/lib/languages/markdown',
+        'highlight.js/lib/languages/go',
+        'highlight.js/lib/languages/rust',
+        'highlight.js/lib/languages/java',
+        'highlight.js/lib/languages/kotlin',
+        'highlight.js/lib/languages/swift',
+        'highlight.js/lib/languages/lua',
+        'highlight.js/lib/languages/dockerfile',
       ],
     },
     define: {
