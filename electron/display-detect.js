@@ -2,7 +2,7 @@
  * Cross-platform display detection, window positioning, and shortcut registration.
  */
 
-import { screen } from 'electron'
+import { app, screen } from 'electron'
 import { execSync } from 'node:child_process'
 import { writeFileSync, unlinkSync, mkdtempSync, cpSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -126,13 +126,15 @@ export function installGnomeExtension() {
   if (!IS_GNOME) return false
   try {
     const __dirname = fileURLToPath(new URL('.', import.meta.url))
-    const src = join(
-      __dirname,
-      '..',
-      'resources',
-      'gnome-extension',
-      'numori-clips-helper@numori.app',
-    )
+    // In packaged builds, the extension is in extraResources/gnome-extension/
+    // In dev, it's at ../resources/gnome-extension/ relative to electron/
+    const src = app.isPackaged
+      ? join(process.resourcesPath, 'gnome-extension', 'numori-clips-helper@numori.app')
+      : join(__dirname, '..', 'resources', 'gnome-extension', 'numori-clips-helper@numori.app')
+    if (!existsSync(src)) {
+      console.error('[Numori Clips] Extension source not found at:', src)
+      return false
+    }
     const dest = join(
       homedir(),
       '.local',

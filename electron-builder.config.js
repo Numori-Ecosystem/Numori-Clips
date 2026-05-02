@@ -28,6 +28,10 @@ export default {
         to: 'icons',
         filter: ['**/*.png'],
       },
+      {
+        from: 'resources/gnome-extension',
+        to: 'gnome-extension',
+      },
     ],
   },
   flatpak: {
